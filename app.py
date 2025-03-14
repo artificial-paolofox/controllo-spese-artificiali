@@ -35,15 +35,32 @@ def abbrevia_mese_anno(date_str):
 # === Streamlit UI ===
 st.title("💰 Budget Manager")
 
-# --- Form di inserimento ---
+
+# --- Form di inserimento con dropdown personalizzabili ---
+
+# Leggiamo categorie e sottocategorie esistenti dal DB
+df_cat = pd.read_sql_query("SELECT DISTINCT Categoria FROM budget", conn)
+df_subcat = pd.read_sql_query("SELECT DISTINCT Sottocategoria FROM budget WHERE Sottocategoria IS NOT NULL AND Sottocategoria != ''", conn)
+
+categorie_esistenti = sorted(df_cat['Categoria'].dropna().unique())
+sottocategorie_esistenti = sorted(df_subcat['Sottocategoria'].dropna().unique())
+
 st.header("➕ Inserisci nuova voce")
 
 with st.form("inserimento_form"):
     col1, col2 = st.columns(2)
     with col1:
         data = st.date_input("Data", value=datetime.today()).strftime("%Y-%m-%d")
-        categoria = st.text_input("Categoria")
-        sottocategoria = st.text_input("Sottocategoria")
+        
+categoria_selezionata = st.selectbox("Categoria esistente", categorie_esistenti, index=0 if categorie_esistenti else None)
+nuova_categoria = st.text_input("...oppure scrivi una nuova categoria")
+categoria = nuova_categoria if nuova_categoria else categoria_selezionata
+
+        
+sottocategoria_selezionata = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti, index=0 if sottocategorie_esistenti else None)
+nuova_sottocategoria = st.text_input("...oppure scrivi una nuova sottocategoria")
+sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategoria_selezionata
+
     with col2:
         ammontare = st.number_input("Ammontare (€)", step=0.01)
         tipologia = st.selectbox("Tipologia", ["spesa", "ricavo"])
@@ -51,7 +68,31 @@ with st.form("inserimento_form"):
 
     submitted = st.form_submit_button("Inserisci")
 
-    if submitted:
+    
+# === VALIDAZIONE ===
+    errori = []
+
+    if not categoria:
+        errori.append("⚠️ Categoria obbligatoria.")
+    elif not categoria.isupper():
+        errori.append("⚠️ La categoria deve essere tutta MAIUSCOLA.")
+
+    if not sottocategoria:
+        errori.append("⚠️ Sottocategoria obbligatoria.")
+    elif not sottocategoria.islower():
+        errori.append("⚠️ La sottocategoria deve essere tutta minuscola.")
+
+    if note and not note.islower():
+        errori.append("⚠️ Le note devono essere tutte minuscole.")
+
+    if tipologia not in ["spesa", "ricavo"]:
+        errori.append("⚠️ Tipologia non valida.")
+
+    if errori:
+        for e in errori:
+            st.warning(e)
+    else:
+
         cursor.execute("""
             INSERT INTO budget (Data, Categoria, Sottocategoria, Ammontare, Note, Tipologia)
             VALUES (?, ?, ?, ?, ?, ?)
