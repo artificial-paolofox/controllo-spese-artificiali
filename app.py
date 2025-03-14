@@ -24,6 +24,14 @@ CREATE TABLE IF NOT EXISTS budget (
 """)
 conn.commit()
 
+# === Funzione mese + anno abbreviato ===
+def abbrevia_mese_anno(date_str):
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m")
+        return f"{calendar.month_abbr[dt.month].lower()} {dt.year}"
+    except:
+        return date_str
+
 # === Streamlit UI ===
 st.title("💰 Budget Manager")
 
@@ -51,15 +59,7 @@ with st.form("inserimento_form"):
         conn.commit()
         st.success("✅ Voce inserita con successo!")
 
-# === Pre-elaborazione mesi abbreviati ===
-def abbrevia_mese(date_str):
-    try:
-        dt = datetime.strptime(date_str, "%Y-%m")
-        return calendar.month_abbr[dt.month].lower()
-    except:
-        return date_str
-
-# === SPESA: Barre impilate per categoria ===
+# === Spese mensili per categoria (barre impilate) ===
 st.header("📊 Spese mensili per categoria")
 
 df_spese = pd.read_sql_query("""
@@ -71,9 +71,9 @@ df_spese = pd.read_sql_query("""
 """, conn)
 
 if not df_spese.empty:
-    df_spese['MeseAbbr'] = df_spese['Mese'].apply(abbrevia_mese)
-    pivot_df = df_spese.pivot(index='MeseAbbr', columns='Categoria', values='Totale').fillna(0)
-    pivot_df = pivot_df.loc[sorted(pivot_df.index, key=lambda x: list(calendar.month_abbr).index(x.capitalize()))]
+    df_spese['MeseAnno'] = df_spese['Mese'].apply(abbrevia_mese_anno)
+    pivot_df = df_spese.pivot(index='MeseAnno', columns='Categoria', values='Totale').fillna(0)
+    pivot_df = pivot_df.loc[sorted(pivot_df.index, key=lambda x: datetime.strptime(x, "%b %Y"))]
 
     fig = go.Figure()
     for categoria in pivot_df.columns:
@@ -96,8 +96,8 @@ if not df_spese.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-# === TREND: Ricavi, Spese e Saldo ===
-st.header("📈 Andamento mensile: Ricavi, Spese e Saldo")
+# === Andamento Ricavi / Spese / Saldo (linee) ===
+st.header("📈 Trend: Ricavi / Spese / Saldo mensili")
 
 df_trend = pd.read_sql_query("""
     SELECT strftime('%Y-%m', Data) AS Mese,
@@ -110,14 +110,17 @@ df_trend = pd.read_sql_query("""
 
 if not df_trend.empty:
     df_trend['Saldo'] = df_trend['Ricavi'] - df_trend['Spese']
-    df_trend['MeseAbbr'] = df_trend['Mese'].apply(abbrevia_mese)
-    df_trend = df_trend.set_index('MeseAbbr')
-    df_trend = df_trend.loc[sorted(df_trend.index, key=lambda x: list(calendar.month_abbr).index(x.capitalize()))]
+    df_trend['MeseAnno'] = df_trend['Mese'].apply(abbrevia_mese_anno)
+    df_trend = df_trend.set_index('MeseAnno')
+    df_trend = df_trend.loc[sorted(df_trend.index, key=lambda x: datetime.strptime(x, "%b %Y"))]
 
     fig_trend = go.Figure()
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Ricavi'], mode='lines+markers', name='Ricavi'))
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Spese'], mode='lines+markers', name='Spese'))
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Saldo'], mode='lines+markers', name='Saldo'))
+    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Ricavi'], mode='lines+markers', name='Ricavi',
+                                   line=dict(color='green')))
+    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Spese'], mode='lines+markers', name='Spese',
+                                   line=dict(color='red')))
+    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Saldo'], mode='lines+markers', name='Saldo',
+                                   line=dict(color='gold')))
 
     fig_trend.update_layout(
         title="Andamento Ricavi / Spese / Saldo",
@@ -127,5 +130,26 @@ if not df_trend.empty:
     )
 
     st.plotly_chart(fig_trend, use_container_width=True)
+
+# === Torta spese per categoria ===
+st.header("🥧 Distribuzione % delle Spese per Categoria")
+
+df_torta = pd.read_sql_query("""
+    SELECT Categoria, SUM(Ammontare) AS Totale
+    FROM budget
+    WHERE Tipologia = 'spesa'
+    GROUP BY Categoria
+""", conn)
+
+if not df_torta.empty:
+    fig_pie = go.Figure(data=[go.Pie(
+        labels=df_torta['Categoria'],
+        values=df_torta['Totale'],
+        textinfo='label+percent',
+        hole=0.3
+    )])
+
+    fig_pie.update_layout(title="Distribuzione % delle Spese per Categoria", height=500)
+    st.plotly_chart(fig_pie, use_container_width=True)
 
 conn.close()
