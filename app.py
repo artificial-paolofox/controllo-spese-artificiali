@@ -35,10 +35,7 @@ def abbrevia_mese_anno(date_str):
 # === Streamlit UI ===
 st.title("💰 Budget Manager")
 
-
 # --- Form di inserimento con dropdown personalizzabili ---
-
-# Leggiamo categorie e sottocategorie esistenti dal DB
 df_cat = pd.read_sql_query("SELECT DISTINCT Categoria FROM budget", conn)
 df_subcat = pd.read_sql_query("SELECT DISTINCT Sottocategoria FROM budget WHERE Sottocategoria IS NOT NULL AND Sottocategoria != ''", conn)
 
@@ -49,17 +46,16 @@ st.header("➕ Inserisci nuova voce")
 
 with st.form("inserimento_form"):
     col1, col2 = st.columns(2)
+
     with col1:
         data = st.date_input("Data", value=datetime.today()).strftime("%Y-%m-%d")
-        
-categoria_selezionata = st.selectbox("Categoria esistente", categorie_esistenti, index=0 if categorie_esistenti else None)
-nuova_categoria = st.text_input("...oppure scrivi una nuova categoria")
-categoria = nuova_categoria if nuova_categoria else categoria_selezionata
+        categoria_selezionata = st.selectbox("Categoria esistente", categorie_esistenti, index=0 if categorie_esistenti else None)
+        nuova_categoria = st.text_input("...oppure scrivi una nuova categoria")
+        categoria = nuova_categoria if nuova_categoria else categoria_selezionata
 
-        
-sottocategoria_selezionata = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti, index=0 if sottocategorie_esistenti else None)
-nuova_sottocategoria = st.text_input("...oppure scrivi una nuova sottocategoria")
-sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategoria_selezionata
+        sottocategoria_selezionata = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti, index=0 if sottocategorie_esistenti else None)
+        nuova_sottocategoria = st.text_input("...oppure scrivi una nuova sottocategoria")
+        sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategoria_selezionata
 
     with col2:
         ammontare = st.number_input("Ammontare (€)", step=0.01)
@@ -68,39 +64,38 @@ sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategori
 
     submitted = st.form_submit_button("Inserisci")
 
-    
-# === VALIDAZIONE ===
-    errori = []
+    # === VALIDAZIONE ===
+    if submitted:
+        errori = []
 
-    if not categoria:
-        errori.append("⚠️ Categoria obbligatoria.")
-    elif not categoria.isupper():
-        errori.append("⚠️ La categoria deve essere tutta MAIUSCOLA.")
+        if not categoria:
+            errori.append("⚠️ Categoria obbligatoria.")
+        elif not categoria.isupper():
+            errori.append("⚠️ La categoria deve essere tutta MAIUSCOLA.")
 
-    if not sottocategoria:
-        errori.append("⚠️ Sottocategoria obbligatoria.")
-    elif not sottocategoria.islower():
-        errori.append("⚠️ La sottocategoria deve essere tutta minuscola.")
+        if not sottocategoria:
+            errori.append("⚠️ Sottocategoria obbligatoria.")
+        elif not sottocategoria.islower():
+            errori.append("⚠️ La sottocategoria deve essere tutta minuscola.")
 
-    if note and not note.islower():
-        errori.append("⚠️ Le note devono essere tutte minuscole.")
+        if note and not note.islower():
+            errori.append("⚠️ Le note devono essere tutte minuscole.")
 
-    if tipologia not in ["spesa", "ricavo"]:
-        errori.append("⚠️ Tipologia non valida.")
+        if tipologia not in ["spesa", "ricavo"]:
+            errori.append("⚠️ Tipologia non valida.")
 
-    if errori:
-        for e in errori:
-            st.warning(e)
-    else:
+        if errori:
+            for e in errori:
+                st.warning(e)
+        else:
+            cursor.execute("""
+                INSERT INTO budget (Data, Categoria, Sottocategoria, Ammontare, Note, Tipologia)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (data, categoria, sottocategoria, ammontare, note, tipologia))
+            conn.commit()
+            st.success("✅ Voce inserita con successo!")
 
-        cursor.execute("""
-            INSERT INTO budget (Data, Categoria, Sottocategoria, Ammontare, Note, Tipologia)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (data, categoria, sottocategoria, ammontare, note, tipologia))
-        conn.commit()
-        st.success("✅ Voce inserita con successo!")
-
-# === Spese mensili per categoria (barre impilate) ===
+# === Spese mensili per categoria ===
 st.header("📊 Spese mensili per categoria")
 
 df_spese = pd.read_sql_query("""
@@ -137,7 +132,7 @@ if not df_spese.empty:
 
     st.plotly_chart(fig, use_container_width=True)
 
-# === Andamento Ricavi / Spese / Saldo (linee) ===
+# === Trend Ricavi / Spese / Saldo ===
 st.header("📈 Trend: Ricavi / Spese / Saldo mensili")
 
 df_trend = pd.read_sql_query("""
@@ -156,12 +151,9 @@ if not df_trend.empty:
     df_trend = df_trend.loc[sorted(df_trend.index, key=lambda x: datetime.strptime(x, "%b %Y"))]
 
     fig_trend = go.Figure()
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Ricavi'], mode='lines+markers', name='Ricavi',
-                                   line=dict(color='green')))
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Spese'], mode='lines+markers', name='Spese',
-                                   line=dict(color='red')))
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Saldo'], mode='lines+markers', name='Saldo',
-                                   line=dict(color='gold')))
+    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Ricavi'], mode='lines+markers', name='Ricavi', line=dict(color='green')))
+    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Spese'], mode='lines+markers', name='Spese', line=dict(color='red')))
+    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Saldo'], mode='lines+markers', name='Saldo', line=dict(color='gold')))
 
     fig_trend.update_layout(
         title="Andamento Ricavi / Spese / Saldo",
@@ -189,7 +181,6 @@ if not df_torta.empty:
         textinfo='label+percent',
         hole=0.3
     )])
-
     fig_pie.update_layout(title="Distribuzione % delle Spese per Categoria", height=500)
     st.plotly_chart(fig_pie, use_container_width=True)
 
