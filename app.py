@@ -10,7 +10,14 @@ key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNq
 supabase: Client = create_client(url, key)
 
 # === Protezione con password ===
-def check_password():
+def check_password()
+
+
+if st.session_state.get("autenticato"):
+    if st.button("🔓 Logout"):
+        st.session_state["autenticato"] = False
+        st.experimental_rerun()
+:
     def password_entered():
         if st.session_state["password"] == "ciaobudget":
             st.session_state["autenticato"] = True
@@ -24,6 +31,13 @@ def check_password():
         st.warning("❌ Password errata")
         st.stop()
 check_password()
+
+
+if st.session_state.get("autenticato"):
+    if st.button("🔓 Logout"):
+        st.session_state["autenticato"] = False
+        st.experimental_rerun()
+
 
 st.title("💰 Budget Manager (Protetto)")
 
