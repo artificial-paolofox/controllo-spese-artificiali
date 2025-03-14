@@ -76,59 +76,56 @@ if not df.empty:
     df = df[df["data"].dt.year == anno_selezionato]
     st.subheader(f"📅 Report completo {anno_selezionato}")
 
-    df["mese"] = pd.Categorical(df["data"].dt.strftime("%b"), categories=["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"], ordered=True)
-
-    # === REPORT 1: Spese per categoria per mese ===
-    st.subheader("📊 Spese mensili per categoria")
+    # === GRAFICO BARRE ===
     spese = df[df["tipologia"] == "spesa"]
+    month_map = {"01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr", "05": "Mag", "06": "Giu", "07": "Lug", "08": "Ago", "09": "Set", "10": "Ott", "11": "Nov", "12": "Dic"}
+    month_order = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+
     spese["mese_num"] = spese["data"].dt.strftime("%m")
-    spese["mese_str"] = spese["mese_num"].map({'01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mag', '06': 'Giu', '07': 'Lug', '08': 'Ago', '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic'})
-    spese["mese_str"] = pd.Categorical(spese["mese_str"], categories=['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'], ordered=True)
+    spese["mese_str"] = spese["mese_num"].map(month_map)
+    spese["mese_str"] = pd.Categorical(spese["mese_str"], categories=month_order, ordered=True)
+
     grouped = spese.groupby(["mese_str", "categoria"])["ammontare"].sum().reset_index()
     pivot = grouped.pivot(index="mese_str", columns="categoria", values="ammontare").fillna(0)
-    pivot = pivot.sort_index()
 
     fig1 = go.Figure()
     for col in pivot.columns:
-        fig1.add_trace(go.Bar(name=col, x=pivot.index.astype(str), y=pivot[col]))
+        fig1.add_trace(go.Bar(name=col, x=pivot.index, y=pivot[col]))
 
     totali = pivot.sum(axis=1)
-    for x, y in zip(pivot.index.astype(str), totali):
-        fig1.add_annotation(
-            x=x,
-            y=y,
-            text=f"{y:.0f}€",
-            showarrow=False,
-            yshift=12,
-            font=dict(size=11)
-        )
+    for x, y in zip(pivot.index, totali):
+        fig1.add_annotation(x=x, y=y, text=f"{y:.0f}€", showarrow=False, yshift=12, font=dict(size=11))
 
     fig1.update_layout(barmode="stack", title="Spese per Categoria (Mensili)", xaxis_title="Mese", yaxis_title="€", xaxis_tickangle=-15)
     st.plotly_chart(fig1, use_container_width=True)
 
-    # === REPORT 2: Trend Ricavi / Spese / Saldo ===
-    st.subheader("📈 Andamento mensile Ricavi, Spese, Saldo")
+    # === GRAFICO TREND ===
     df["mese_num"] = df["data"].dt.strftime("%m")
-    df["periodo"] = df["mese_num"].map({'01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mag', '06': 'Giu', '07': 'Lug', '08': 'Ago', '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic'})
-    df["periodo"] = pd.Categorical(df["periodo"], categories=['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'], ordered=True)
+    df["periodo"] = df["mese_num"].map(month_map)
+    df["periodo"] = pd.Categorical(df["periodo"], categories=month_order, ordered=True)
+
     trend = df.groupby(["periodo", "tipologia"])["ammontare"].sum().unstack().fillna(0)
     trend["saldo"] = trend.get("ricavo", 0) - trend.get("spesa", 0)
-    trend = trend.reindex(['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']).dropna(how="all")
+    trend = trend.reindex(month_order).dropna(how="all")
 
     fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=trend.index.astype(str), y=trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
-    fig2.add_trace(go.Scatter(x=trend.index.astype(str), y=trend.get("spesa", 0), name="Spese", line=dict(color="red")))
-    fig2.add_trace(go.Scatter(x=trend.index.astype(str), y=trend["saldo"], name="Saldo", line=dict(color="gold")))
+    fig2.add_trace(go.Scatter(x=trend.index, y=trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
+    fig2.add_trace(go.Scatter(x=trend.index, y=trend.get("spesa", 0), name="Spese", line=dict(color="red")))
+    fig2.add_trace(go.Scatter(x=trend.index, y=trend["saldo"], name="Saldo", line=dict(color="gold")))
 
     fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # === REPORT 3: Torta % spese ===
+    # === GRAFICO TORTA ===
     st.subheader("🥧 Distribuzione % delle Spese per Categoria")
     torta = spese.groupby("categoria")["ammontare"].sum()
     fig3 = go.Figure(data=[go.Pie(labels=torta.index, values=torta.values, hole=0.3)])
     fig3.update_layout(title="Distribuzione % delle Spese")
     st.plotly_chart(fig3, use_container_width=True)
+
+    # === Visualizza tabella completa ===
+    with st.expander("📋 Visualizza dati grezzi dal database"):
+        st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
 
 else:
     st.info("Nessun dato ancora disponibile.")
