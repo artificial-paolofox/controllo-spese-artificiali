@@ -123,9 +123,13 @@ if not df.empty:
     fig3.update_layout(title="Distribuzione % delle Spese")
     st.plotly_chart(fig3, use_container_width=True)
 
-    # === Visualizza tabella completa ===
-    with st.expander("📋 Visualizza dati grezzi dal database"):
-        st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
-
+    
 else:
     st.info("Nessun dato ancora disponibile.")
+
+# === Visualizza tabella completa SEMPRE ===
+with st.expander("📋 Visualizza dati grezzi dal database"):
+    if not df.empty:
+        st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
+    else:
+        st.info("Nessun dato disponibile nel database.")
