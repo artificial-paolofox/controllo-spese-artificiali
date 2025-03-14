@@ -9,10 +9,7 @@ url = "https://sjoryqgtggoukbqviqqe.supabase.co"
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqb3J5cWd0Z2dvdWticXZpcXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NzA4MTEsImV4cCI6MjA1NzU0NjgxMX0.LMIJ4SZncXI4YvpLOvBwlS98wOUnBvwRhGY_Hnjw460"
 supabase: Client = create_client(url, key)
 
-
-# === Protezione con password ===
-import streamlit as st
-
+# === Protezione con password + logout ===
 def check_password():
     def password_entered():
         if st.session_state["password"] == "ciaobudget":
@@ -33,26 +30,13 @@ def check_password():
             st.experimental_rerun()
 
 check_password()
-:
-    def password_entered():
-        if st.session_state["password"] == "ciaobudget":
-            st.session_state["autenticato"] = True
-        else:
-            st.session_state["autenticato"] = False
-    if "autenticato" not in st.session_state:
-        st.text_input("🔐 Inserisci password:", type="password", on_change=password_entered, key="password")
-        st.stop()
-    elif not st.session_state["autenticato"]:
-        st.text_input("🔐 Inserisci password:", type="password", on_change=password_entered, key="password")
-        st.warning("❌ Password errata")
-        st.stop()
-check_password()
 
+# === App ===
 st.title("💰 Budget Manager (Protetto)")
 
-# === Carica dati ===
 data_result = supabase.table("budget").select("*").execute()
 df = pd.DataFrame(data_result.data)
+
 if not df.empty:
     df["data"] = pd.to_datetime(df["data"])
 
