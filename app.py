@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from datetime import datetime
 
 # === Connessione al database ===
@@ -50,51 +50,43 @@ with st.form("inserimento_form"):
         conn.commit()
         st.success("✅ Voce inserita con successo!")
 
-# --- Report sintetico per mese ---
-st.header("📊 Report mensile sintetico")
+# === Report: Spese mensili per categoria ===
+st.header("📊 Spese mensili per categoria (impilate)")
 
-df = pd.read_sql_query("""
-    SELECT strftime('%Y-%m', Data) AS Mese,
-           SUM(CASE WHEN Tipologia = 'ricavo' THEN Ammontare ELSE 0 END) AS Ricavi,
-           SUM(CASE WHEN Tipologia = 'spesa' THEN Ammontare ELSE 0 END) AS Spese
+df_spese = pd.read_sql_query("""
+    SELECT strftime('%Y-%m', Data) AS Mese, Categoria, SUM(Ammontare) AS Totale
     FROM budget
-    GROUP BY Mese
-    ORDER BY Mese
-""", conn)
-
-if not df.empty:
-    st.dataframe(df)
-
-    # --- Grafico ---
-    st.subheader("📈 Andamento Ricavi vs Spese")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(df['Mese'], df['Ricavi'], marker='o', label='Ricavi')
-    ax.plot(df['Mese'], df['Spese'], marker='o', label='Spese')
-    ax.set_xlabel('Mese')
-    ax.set_ylabel('€')
-    ax.set_title('Andamento mensile')
-    ax.legend()
-    ax.grid(True)
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
-else:
-    st.info("Nessun dato disponibile per ora.")
-
-# --- Report dettagliato per mese e categoria ---
-st.header("📋 Report dettagliato per mese e categoria")
-
-df_dett = pd.read_sql_query("""
-    SELECT strftime('%Y-%m', Data) AS Mese, Categoria,
-           SUM(CASE WHEN Tipologia = 'ricavo' THEN Ammontare ELSE 0 END) AS Totale_Ricavi,
-           SUM(CASE WHEN Tipologia = 'spesa' THEN Ammontare ELSE 0 END) AS Totale_Spese
-    FROM budget
+    WHERE Tipologia = 'spesa'
     GROUP BY Mese, Categoria
     ORDER BY Mese, Categoria
 """, conn)
 
-if not df_dett.empty:
-    st.dataframe(df_dett)
+if not df_spese.empty:
+    pivot_df = df_spese.pivot(index='Mese', columns='Categoria', values='Totale').fillna(0)
+    pivot_df = pivot_df.sort_index()
+
+    fig = go.Figure()
+
+    for categoria in pivot_df.columns:
+        fig.add_trace(go.Bar(
+            name=categoria,
+            x=pivot_df.index,
+            y=pivot_df[categoria],
+            text=pivot_df[categoria].apply(lambda x: f"€{x:,.2f}" if x > 0 else ""),
+            hovertemplate='%{x}<br>%{y} €<br>' + categoria,
+        ))
+
+    fig.update_layout(
+        barmode='stack',
+        title='Spese mensili per categoria',
+        xaxis_title='Mese',
+        yaxis_title='Totale €',
+        legend_title='Categoria',
+        height=600
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Nessun dato disponibile per ora.")
+    st.info("Nessuna spesa disponibile per il grafico.")
 
 conn.close()
