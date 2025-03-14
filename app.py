@@ -9,14 +9,30 @@ url = "https://sjoryqgtggoukbqviqqe.supabase.co"
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqb3J5cWd0Z2dvdWticXZpcXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NzA4MTEsImV4cCI6MjA1NzU0NjgxMX0.LMIJ4SZncXI4YvpLOvBwlS98wOUnBvwRhGY_Hnjw460"
 supabase: Client = create_client(url, key)
 
+
 # === Protezione con password ===
+import streamlit as st
+
 def check_password():
+    def password_entered():
+        if st.session_state["password"] == "ciaobudget":
+            st.session_state["autenticato"] = True
+        else:
+            st.session_state["autenticato"] = False
 
+    if "autenticato" not in st.session_state:
+        st.text_input("🔐 Inserisci password:", type="password", on_change=password_entered, key="password")
+        st.stop()
+    elif not st.session_state["autenticato"]:
+        st.text_input("🔐 Inserisci password:", type="password", on_change=password_entered, key="password")
+        st.warning("❌ Password errata")
+        st.stop()
+    else:
+        if st.button("🔓 Logout"):
+            st.session_state["autenticato"] = False
+            st.experimental_rerun()
 
-if st.session_state.get("autenticato"):
-    if st.button("🔓 Logout"):
-        st.session_state["autenticato"] = False
-        st.experimental_rerun()
+check_password()
 :
     def password_entered():
         if st.session_state["password"] == "ciaobudget":
@@ -31,13 +47,6 @@ if st.session_state.get("autenticato"):
         st.warning("❌ Password errata")
         st.stop()
 check_password()
-
-
-if st.session_state.get("autenticato"):
-    if st.button("🔓 Logout"):
-        st.session_state["autenticato"] = False
-        st.experimental_rerun()
-
 
 st.title("💰 Budget Manager (Protetto)")
 
