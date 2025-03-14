@@ -10,13 +10,12 @@ key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNq
 
 supabase: Client = create_client(url, key)
 
-# === Streamlit UI ===
 st.title("💰 Budget Manager (Cloud Edition)")
 
-# --- Form di inserimento ---
+# === Form di Inserimento ===
 st.header("➕ Inserisci nuova voce")
 
-# Leggi le categorie esistenti per i dropdown
+# Preleva categorie/sottocategorie esistenti
 categorie_data = supabase.table("budget").select("categoria").execute()
 sottocategorie_data = supabase.table("budget").select("sottocategoria").execute()
 
@@ -45,17 +44,10 @@ with st.form("inserimento_form"):
 
     if submitted:
         errori = []
-
-        if not categoria:
-            errori.append("⚠️ Categoria obbligatoria.")
-        elif not categoria.isupper():
-            errori.append("⚠️ La categoria deve essere tutta MAIUSCOLA.")
-
-        if not sottocategoria:
-            errori.append("⚠️ Sottocategoria obbligatoria.")
-        elif not sottocategoria.islower():
-            errori.append("⚠️ La sottocategoria deve essere tutta minuscola.")
-
+        if not categoria or not categoria.isupper():
+            errori.append("⚠️ Categoria obbligatoria e tutta MAIUSCOLA.")
+        if not sottocategoria or not sottocategoria.islower():
+            errori.append("⚠️ Sottocategoria obbligatoria e tutta minuscola.")
         if note and not note.islower():
             errori.append("⚠️ Le note devono essere tutte minuscole.")
 
@@ -67,39 +59,54 @@ with st.form("inserimento_form"):
                 "data": data,
                 "categoria": categoria,
                 "sottocategoria": sottocategoria,
-                "ammontare": ammontare,
+                "ammontare": float(ammontare),
                 "note": note,
                 "tipologia": tipologia
             }).execute()
             st.success("✅ Voce inserita con successo!")
 
-# === Grafici ===
-st.header("📈 Report Mensile (Supabase)")
+# === Report ===
+st.header("📊 Report completo")
 
 data_result = supabase.table("budget").select("*").execute()
 df = pd.DataFrame(data_result.data)
 
 if not df.empty:
     df["data"] = pd.to_datetime(df["data"])
-    df["mese"] = df["data"].dt.strftime("%b %Y")
+    df["mese"] = df["data"].dt.to_period("M").astype(str)
 
-    # TREND
+    # === Grafico 1: Barre impilate per categoria e mese (solo spese) ===
+    st.subheader("📊 Spese mensili per categoria")
+    df_spese = df[df["tipologia"] == "spesa"]
+    grouped = df_spese.groupby(["mese", "categoria"])["ammontare"].sum().reset_index()
+    pivot_df = grouped.pivot(index="mese", columns="categoria", values="ammontare").fillna(0)
+    pivot_df = pivot_df.sort_index()
+
+    fig1 = go.Figure()
+    for categoria in pivot_df.columns:
+        fig1.add_trace(go.Bar(name=categoria, x=pivot_df.index, y=pivot_df[categoria]))
+    fig1.update_layout(barmode="stack", xaxis_title="Mese", yaxis_title="Totale Spese €", title="Spese mensili per categoria")
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # === Grafico 2: Trend Ricavi / Spese / Saldo ===
+    st.subheader("📈 Trend mensile Ricavi / Spese / Saldo")
     df_trend = df.groupby(["mese", "tipologia"])["ammontare"].sum().unstack().fillna(0)
     df_trend["saldo"] = df_trend.get("ricavo", 0) - df_trend.get("spesa", 0)
+    df_trend = df_trend.sort_index()
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_trend.index, y=df_trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
-    fig.add_trace(go.Scatter(x=df_trend.index, y=df_trend.get("spesa", 0), name="Spese", line=dict(color="red")))
-    fig.add_trace(go.Scatter(x=df_trend.index, y=df_trend["saldo"], name="Saldo", line=dict(color="gold")))
-    fig.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
-    st.plotly_chart(fig, use_container_width=True)
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=df_trend.index, y=df_trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
+    fig2.add_trace(go.Scatter(x=df_trend.index, y=df_trend.get("spesa", 0), name="Spese", line=dict(color="red")))
+    fig2.add_trace(go.Scatter(x=df_trend.index, y=df_trend["saldo"], name="Saldo", line=dict(color="gold")))
+    fig2.update_layout(xaxis_title="Mese", yaxis_title="€", title="Andamento mensile Ricavi/Spese/Saldo")
+    st.plotly_chart(fig2, use_container_width=True)
 
-    # TORTA
-    spese_per_cat = df[df["tipologia"] == "spesa"].groupby("categoria")["ammontare"].sum()
-    if not spese_per_cat.empty:
-        fig_pie = go.Figure(data=[go.Pie(labels=spese_per_cat.index, values=spese_per_cat.values, hole=0.3)])
-        fig_pie.update_layout(title="Distribuzione Spese per Categoria (%)")
-        st.plotly_chart(fig_pie, use_container_width=True)
-
+    # === Grafico 3: Torta spese per categoria ===
+    st.subheader("🥧 Distribuzione % Spese per categoria")
+    torta = df_spese.groupby("categoria")["ammontare"].sum()
+    if not torta.empty:
+        fig3 = go.Figure(data=[go.Pie(labels=torta.index, values=torta.values, hole=0.3)])
+        fig3.update_layout(title="Distribuzione % delle Spese per Categoria")
+        st.plotly_chart(fig3, use_container_width=True)
 else:
-    st.info("Nessun dato ancora inserito.")
+    st.info("Nessun dato ancora disponibile.")
