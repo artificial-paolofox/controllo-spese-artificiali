@@ -73,11 +73,40 @@ df = pd.DataFrame(data_result.data)
 
 if not df.empty:
     df["data"] = pd.to_datetime(df["data"])
-    df["mese"] = df["data"].dt.strftime("%b")
-    df["mese_num"] = df["data"].dt.month
-    df = df.sort_values("mese_num")
+    df["mese"] = df["data"].dt.to_period("M").astype(str)
 
+    
     # === Grafico 1: Barre impilate per categoria e mese (solo spese) ===
+    st.subheader("📊 Spese mensili per categoria")
+    df_spese = df[df["tipologia"] == "spesa"]
+    df_spese["mese"] = pd.Categorical(df_spese["data"].dt.strftime("%b"), categories=["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"], ordered=True)
+    df_spese["mese_num"] = df_spese["data"].dt.month
+    grouped = df_spese.groupby(["mese", "categoria"])["ammontare"].sum().reset_index()
+    pivot_df = grouped.pivot(index="mese", columns="categoria", values="ammontare").fillna(0)
+    pivot_df = pivot_df.sort_index()
+
+    # Calcolo dei totali mensili per visualizzazione
+    totali_mensili = pivot_df.sum(axis=1)
+
+    fig1 = go.Figure()
+    for categoria in pivot_df.columns:
+        fig1.add_trace(go.Bar(name=categoria, x=pivot_df.index, y=pivot_df[categoria]))
+
+    # Aggiungiamo le etichette dei totali sopra le barre
+    for i, mese in enumerate(pivot_df.index):
+        totale = totali_mensili[mese]
+        fig1.add_annotation(
+            x=mese,
+            y=totale,
+            text=f"{totale:.0f}€",
+            showarrow=False,
+            font=dict(size=12, color="white"),
+            yshift=20
+        )
+
+    fig1.update_layout(barmode="stack", xaxis_title="Mese", yaxis_title="Totale Spese €", title="Spese mensili per categoria", xaxis_tickangle=-15)
+    st.plotly_chart(fig1, use_container_width=True)
+
     st.subheader("📊 Spese mensili per categoria")
     df_spese = df[df["tipologia"] == "spesa"]
     grouped = df_spese.groupby(["mese", "categoria"])["ammontare"].sum().reset_index()
@@ -86,10 +115,6 @@ if not df.empty:
 
     fig1 = go.Figure()
     for categoria in pivot_df.columns:
-        y_values = pivot_df[categoria].values
-        for i, val in enumerate(y_values):
-            if val > 0:
-                fig1.add_annotation(x=pivot_df.index[i], y=val, text=f"{val:.0f}€", showarrow=False, font=dict(size=10), yshift=10)
         fig1.add_trace(go.Bar(name=categoria, x=pivot_df.index, y=pivot_df[categoria]))
     fig1.update_layout(barmode="stack", xaxis_title="Mese", yaxis_title="Totale Spese €", title="Spese mensili per categoria")
     st.plotly_chart(fig1, use_container_width=True)
