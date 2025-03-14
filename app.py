@@ -127,7 +127,47 @@ if not df.empty:
 else:
     st.info("Nessun dato ancora disponibile.")
 
-# === Visualizza tabella completa SEMPRE ===
+# === Visualizza tabella completa con filtri ===
+st.subheader("🧰 Filtra i dati del database")
+
+# Filtro per tipologia
+tipologie = df["tipologia"].dropna().unique().tolist()
+tipologia_sel = st.selectbox("📌 Tipologia", ["Tutte"] + tipologie)
+
+# Filtro per mese
+mesi_disponibili = df["data"].dt.strftime("%b").unique().tolist()
+mese_sel = st.selectbox("📅 Mese", ["Tutti"] + mesi_disponibili)
+
+# Filtro per categoria o note
+testo_libero = st.text_input("🔍 Cerca per categoria / sottocategoria / note").strip().lower()
+
+# Filtro per ammontare
+min_amm, max_amm = float(df["ammontare"].min()), float(df["ammontare"].max())
+ammontare_range = st.slider("💶 Filtro per ammontare (€)", min_amm, max_amm, (min_amm, max_amm))
+
+# Applica i filtri
+filtro_df = df.copy()
+if tipologia_sel != "Tutte":
+    filtro_df = filtro_df[filtro_df["tipologia"] == tipologia_sel]
+if mese_sel != "Tutti":
+    filtro_df = filtro_df[filtro_df["data"].dt.strftime("%b") == mese_sel]
+if testo_libero:
+    filtro_df = filtro_df[
+        filtro_df["categoria"].str.lower().str.contains(testo_libero) |
+        filtro_df["sottocategoria"].str.lower().str.contains(testo_libero) |
+        filtro_df["note"].str.lower().str.contains(testo_libero)
+    ]
+filtro_df = filtro_df[
+    (filtro_df["ammontare"] >= ammontare_range[0]) & (filtro_df["ammontare"] <= ammontare_range[1])
+    ]
+
+# Visualizza la tabella filtrata
+with st.expander("📋 Visualizza dati grezzi dal database"):
+    if not filtro_df.empty:
+        st.dataframe(filtro_df.sort_values("data", ascending=False), use_container_width=True)
+    else:
+        st.info("Nessun dato corrisponde ai filtri selezionati.")
+
 with st.expander("📋 Visualizza dati grezzi dal database"):
     if not df.empty:
         st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
