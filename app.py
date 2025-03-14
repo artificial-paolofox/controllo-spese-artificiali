@@ -76,16 +76,17 @@ if not df.empty:
     df = df[df["data"].dt.year == anno_selezionato]
     st.subheader(f"📅 Report completo {anno_selezionato}")
 
-    df["mese"] = pd.Categorical(df["data"].dt.strftime("%b"), categories=["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"], ordered=True)
+    df["mese_str"] = df["data"].dt.strftime("%m").map({'01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mag', '06': 'Giu', '07': 'Lug', '08': 'Ago', '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic'})
+    df["mese_str"] = pd.Categorical(df["mese_str"], categories=['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'], ordered=True)
 
     # === REPORT 1: Spese per categoria per mese ===
     st.subheader("📊 Spese mensili per categoria")
     spese = df[df["tipologia"] == "spesa"]
-    spese["mese_str"] = spese["data"].dt.strftime("%m")
+    spese["mese_str"] = spese["data"].dt.strftime("%m").map({'01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mag', '06': 'Giu', '07': 'Lug', '08': 'Ago', '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic'})
+    spese["mese_str"] = pd.Categorical(spese["mese_str"], categories=['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'], ordered=True)
     grouped = spese.groupby(["mese_str", "categoria"])["ammontare"].sum().reset_index()
     pivot = grouped.pivot(index="mese_str", columns="categoria", values="ammontare").fillna(0)
-    pivot = pivot.rename(index={'01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mag', '06': 'Giu', '07': 'Lug', '08': 'Ago', '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic'})
-    pivot = pivot.reindex(["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"])
+    pivot = pivot.reindex(['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'])
     pivot = pivot.sort_index()
 
     fig1 = go.Figure()
@@ -108,11 +109,10 @@ if not df.empty:
 
     # === REPORT 2: Trend Ricavi / Spese / Saldo ===
     st.subheader("📈 Andamento mensile Ricavi, Spese, Saldo")
-    df["mese_str"] = df["data"].dt.strftime("%m")
-    df["periodo"] = df["mese_str"].map({'01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mag', '06': 'Giu', '07': 'Lug', '08': 'Ago', '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic'})
+    df["periodo"] = df["mese_str"]
     trend = df.groupby(["periodo", "tipologia"])["ammontare"].sum().unstack().fillna(0)
     trend["saldo"] = trend.get("ricavo", 0) - trend.get("spesa", 0)
-    trend = trend.reindex(["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]).dropna(how="all")
+    trend = trend.reindex(['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']).dropna(how="all")
 
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(x=trend.index.astype(str), y=trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
