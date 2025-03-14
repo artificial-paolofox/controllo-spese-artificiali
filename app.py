@@ -61,14 +61,19 @@ with st.form("inserimento_form"):
             st.success("✅ Voce inserita con successo!")
 
 # === Report ===
-st.header("📈 Report completo")
+st.header(f"📈 Report completo {datetime.now().year}")
+
+    # Selettore anno
+    anni_disponibili = sorted(df["data"].dt.year.unique())
+    anno_selezionato = st.selectbox("📅 Seleziona l'anno", anni_disponibili, index=len(anni_disponibili)-1)
+    df = df[df["data"].dt.year == anno_selezionato]
 
 data_result = supabase.table("budget").select("*").execute()
 df = pd.DataFrame(data_result.data)
 
 if not df.empty:
     df["data"] = pd.to_datetime(df["data"])
-    df["mese"] = df["data"].dt.to_period("M")
+    df["mese"] = pd.Categorical(df["data"].dt.strftime("%b"), categories=["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"], ordered=True)
     df["mese_label"] = df["data"].dt.strftime("%b")
     df["mese_ord"] = df["data"].dt.month
 
@@ -81,7 +86,7 @@ if not df.empty:
 
     fig1 = go.Figure()
     for col in pivot.columns:
-        fig1.add_trace(go.Bar(name=col, x=pivot.index, y=pivot[col]))
+        fig1.add_trace(go.Bar(name=col, x=pivot.index.astype(str), y=pivot[col]))
 
     # Totali sopra barre
     totali = pivot.sum(axis=1)
@@ -106,9 +111,9 @@ if not df.empty:
     trend = trend.sort_index()
 
     fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=trend.index, y=trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
-    fig2.add_trace(go.Scatter(x=trend.index, y=trend.get("spesa", 0), name="Spese", line=dict(color="red")))
-    fig2.add_trace(go.Scatter(x=trend.index, y=trend["saldo"], name="Saldo", line=dict(color="gold")))
+    fig2.add_trace(go.Scatter(x=trend.index.astype(str), y=trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
+    fig2.add_trace(go.Scatter(x=trend.index.astype(str), y=trend.get("spesa", 0), name="Spese", line=dict(color="red")))
+    fig2.add_trace(go.Scatter(x=trend.index.astype(str), y=trend["saldo"], name="Saldo", line=dict(color="gold")))
 
     fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
     st.plotly_chart(fig2, use_container_width=True)
