@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 # === Connessione al database ===
-DB_PATH = 'Budget_copy.db'  # Assicurati che il file sia nella stessa cartella
+DB_PATH = 'Budget_copy.db'
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
@@ -50,8 +50,8 @@ with st.form("inserimento_form"):
         conn.commit()
         st.success("✅ Voce inserita con successo!")
 
-# --- Report ---
-st.header("📊 Report mensile")
+# --- Report sintetico per mese ---
+st.header("📊 Report mensile sintetico")
 
 df = pd.read_sql_query("""
     SELECT strftime('%Y-%m', Data) AS Mese,
@@ -77,6 +77,23 @@ if not df.empty:
     ax.grid(True)
     plt.xticks(rotation=45)
     st.pyplot(fig)
+else:
+    st.info("Nessun dato disponibile per ora.")
+
+# --- Report dettagliato per mese e categoria ---
+st.header("📋 Report dettagliato per mese e categoria")
+
+df_dett = pd.read_sql_query("""
+    SELECT strftime('%Y-%m', Data) AS Mese, Categoria,
+           SUM(CASE WHEN Tipologia = 'ricavo' THEN Ammontare ELSE 0 END) AS Totale_Ricavi,
+           SUM(CASE WHEN Tipologia = 'spesa' THEN Ammontare ELSE 0 END) AS Totale_Spese
+    FROM budget
+    GROUP BY Mese, Categoria
+    ORDER BY Mese, Categoria
+""", conn)
+
+if not df_dett.empty:
+    st.dataframe(df_dett)
 else:
     st.info("Nessun dato disponibile per ora.")
 
