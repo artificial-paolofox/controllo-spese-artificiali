@@ -10,7 +10,7 @@ key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNq
 supabase: Client = create_client(url, key)
 
 # === Protezione con password ===
-def check_password()
+def check_password():
 
 
 if st.session_state.get("autenticato"):
