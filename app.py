@@ -1,61 +1,40 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
-import calendar
+from supabase import create_client, Client
 
-# === Connessione al database ===
-DB_PATH = 'Budget_copy.db'
-conn = sqlite3.connect(DB_PATH)
-cursor = conn.cursor()
+# === Supabase Config ===
+url = "https://sjoryqgtggoukbqviqqe.supabase.co"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqb3J5cWd0Z2dvdWticXZpcXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NzA4MTEsImV4cCI6MjA1NzU0NjgxMX0.LMIJ4SZncXI4YvpLOvBwlS98wOUnBvwRhGY_Hnjw460"
 
-# === Crea la tabella se non esiste ===
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS budget (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    Data TEXT NOT NULL,
-    Categoria TEXT NOT NULL,
-    Sottocategoria TEXT,
-    Ammontare REAL NOT NULL,
-    Note TEXT,
-    Tipologia TEXT NOT NULL
-)
-""")
-conn.commit()
-
-# === Funzione mese + anno abbreviato ===
-def abbrevia_mese_anno(date_str):
-    try:
-        dt = datetime.strptime(date_str, "%Y-%m")
-        return f"{calendar.month_abbr[dt.month].lower()} {dt.year}"
-    except:
-        return date_str
+supabase: Client = create_client(url, key)
 
 # === Streamlit UI ===
-st.title("💰 Budget Manager")
+st.title("💰 Budget Manager (Cloud Edition)")
 
-# --- Form di inserimento con dropdown personalizzabili ---
-df_cat = pd.read_sql_query("SELECT DISTINCT Categoria FROM budget", conn)
-df_subcat = pd.read_sql_query("SELECT DISTINCT Sottocategoria FROM budget WHERE Sottocategoria IS NOT NULL AND Sottocategoria != ''", conn)
-
-categorie_esistenti = sorted(df_cat['Categoria'].dropna().unique())
-sottocategorie_esistenti = sorted(df_subcat['Sottocategoria'].dropna().unique())
-
+# --- Form di inserimento ---
 st.header("➕ Inserisci nuova voce")
+
+# Leggi le categorie esistenti per i dropdown
+categorie_data = supabase.table("budget").select("categoria").execute()
+sottocategorie_data = supabase.table("budget").select("sottocategoria").execute()
+
+categorie_esistenti = sorted(set(i['categoria'] for i in categorie_data.data if i['categoria']))
+sottocategorie_esistenti = sorted(set(i['sottocategoria'] for i in sottocategorie_data.data if i['sottocategoria']))
 
 with st.form("inserimento_form"):
     col1, col2 = st.columns(2)
 
     with col1:
         data = st.date_input("Data", value=datetime.today()).strftime("%Y-%m-%d")
-        categoria_selezionata = st.selectbox("Categoria esistente", categorie_esistenti, index=0 if categorie_esistenti else None)
+        categoria_sel = st.selectbox("Categoria esistente", categorie_esistenti) if categorie_esistenti else ""
         nuova_categoria = st.text_input("...oppure scrivi una nuova categoria")
-        categoria = nuova_categoria if nuova_categoria else categoria_selezionata
+        categoria = nuova_categoria if nuova_categoria else categoria_sel
 
-        sottocategoria_selezionata = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti, index=0 if sottocategorie_esistenti else None)
+        sottocategoria_sel = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti) if sottocategorie_esistenti else ""
         nuova_sottocategoria = st.text_input("...oppure scrivi una nuova sottocategoria")
-        sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategoria_selezionata
+        sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategoria_sel
 
     with col2:
         ammontare = st.number_input("Ammontare (€)", step=0.01)
@@ -64,7 +43,6 @@ with st.form("inserimento_form"):
 
     submitted = st.form_submit_button("Inserisci")
 
-    # === VALIDAZIONE ===
     if submitted:
         errori = []
 
@@ -81,107 +59,47 @@ with st.form("inserimento_form"):
         if note and not note.islower():
             errori.append("⚠️ Le note devono essere tutte minuscole.")
 
-        if tipologia not in ["spesa", "ricavo"]:
-            errori.append("⚠️ Tipologia non valida.")
-
         if errori:
             for e in errori:
                 st.warning(e)
         else:
-            cursor.execute("""
-                INSERT INTO budget (Data, Categoria, Sottocategoria, Ammontare, Note, Tipologia)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (data, categoria, sottocategoria, ammontare, note, tipologia))
-            conn.commit()
+            supabase.table("budget").insert({
+                "data": data,
+                "categoria": categoria,
+                "sottocategoria": sottocategoria,
+                "ammontare": ammontare,
+                "note": note,
+                "tipologia": tipologia
+            }).execute()
             st.success("✅ Voce inserita con successo!")
 
-# === Spese mensili per categoria ===
-st.header("📊 Spese mensili per categoria")
+# === Grafici ===
+st.header("📈 Report Mensile (Supabase)")
 
-df_spese = pd.read_sql_query("""
-    SELECT strftime('%Y-%m', Data) AS Mese, Categoria, SUM(Ammontare) AS Totale
-    FROM budget
-    WHERE Tipologia = 'spesa'
-    GROUP BY Mese, Categoria
-    ORDER BY Mese, Categoria
-""", conn)
+data_result = supabase.table("budget").select("*").execute()
+df = pd.DataFrame(data_result.data)
 
-if not df_spese.empty:
-    df_spese['MeseAnno'] = df_spese['Mese'].apply(abbrevia_mese_anno)
-    pivot_df = df_spese.pivot(index='MeseAnno', columns='Categoria', values='Totale').fillna(0)
-    pivot_df = pivot_df.loc[sorted(pivot_df.index, key=lambda x: datetime.strptime(x, "%b %Y"))]
+if not df.empty:
+    df["data"] = pd.to_datetime(df["data"])
+    df["mese"] = df["data"].dt.strftime("%b %Y")
+
+    # TREND
+    df_trend = df.groupby(["mese", "tipologia"])["ammontare"].sum().unstack().fillna(0)
+    df_trend["saldo"] = df_trend.get("ricavo", 0) - df_trend.get("spesa", 0)
 
     fig = go.Figure()
-    for categoria in pivot_df.columns:
-        fig.add_trace(go.Bar(
-            name=categoria,
-            x=pivot_df.index,
-            y=pivot_df[categoria],
-            text=pivot_df[categoria].apply(lambda x: f"€{x:,.2f}" if x > 0 else ""),
-            hovertemplate='%{x}<br>%{y} €<br>' + categoria,
-        ))
-
-    fig.update_layout(
-        barmode='stack',
-        title='Spese mensili per categoria',
-        xaxis_title='Mese',
-        yaxis_title='Totale €',
-        legend_title='Categoria',
-        height=600
-    )
-
+    fig.add_trace(go.Scatter(x=df_trend.index, y=df_trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
+    fig.add_trace(go.Scatter(x=df_trend.index, y=df_trend.get("spesa", 0), name="Spese", line=dict(color="red")))
+    fig.add_trace(go.Scatter(x=df_trend.index, y=df_trend["saldo"], name="Saldo", line=dict(color="gold")))
+    fig.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
     st.plotly_chart(fig, use_container_width=True)
 
-# === Trend Ricavi / Spese / Saldo ===
-st.header("📈 Trend: Ricavi / Spese / Saldo mensili")
+    # TORTA
+    spese_per_cat = df[df["tipologia"] == "spesa"].groupby("categoria")["ammontare"].sum()
+    if not spese_per_cat.empty:
+        fig_pie = go.Figure(data=[go.Pie(labels=spese_per_cat.index, values=spese_per_cat.values, hole=0.3)])
+        fig_pie.update_layout(title="Distribuzione Spese per Categoria (%)")
+        st.plotly_chart(fig_pie, use_container_width=True)
 
-df_trend = pd.read_sql_query("""
-    SELECT strftime('%Y-%m', Data) AS Mese,
-           SUM(CASE WHEN Tipologia = 'ricavo' THEN Ammontare ELSE 0 END) AS Ricavi,
-           SUM(CASE WHEN Tipologia = 'spesa' THEN Ammontare ELSE 0 END) AS Spese
-    FROM budget
-    GROUP BY Mese
-    ORDER BY Mese
-""", conn)
-
-if not df_trend.empty:
-    df_trend['Saldo'] = df_trend['Ricavi'] - df_trend['Spese']
-    df_trend['MeseAnno'] = df_trend['Mese'].apply(abbrevia_mese_anno)
-    df_trend = df_trend.set_index('MeseAnno')
-    df_trend = df_trend.loc[sorted(df_trend.index, key=lambda x: datetime.strptime(x, "%b %Y"))]
-
-    fig_trend = go.Figure()
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Ricavi'], mode='lines+markers', name='Ricavi', line=dict(color='green')))
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Spese'], mode='lines+markers', name='Spese', line=dict(color='red')))
-    fig_trend.add_trace(go.Scatter(x=df_trend.index, y=df_trend['Saldo'], mode='lines+markers', name='Saldo', line=dict(color='gold')))
-
-    fig_trend.update_layout(
-        title="Andamento Ricavi / Spese / Saldo",
-        xaxis_title="Mese",
-        yaxis_title="€",
-        height=500
-    )
-
-    st.plotly_chart(fig_trend, use_container_width=True)
-
-# === Torta spese per categoria ===
-st.header("🥧 Distribuzione % delle Spese per Categoria")
-
-df_torta = pd.read_sql_query("""
-    SELECT Categoria, SUM(Ammontare) AS Totale
-    FROM budget
-    WHERE Tipologia = 'spesa'
-    GROUP BY Categoria
-""", conn)
-
-if not df_torta.empty:
-    fig_pie = go.Figure(data=[go.Pie(
-        labels=df_torta['Categoria'],
-        values=df_torta['Totale'],
-        textinfo='label+percent',
-        hole=0.3
-    )])
-    fig_pie.update_layout(title="Distribuzione % delle Spese per Categoria", height=500)
-    st.plotly_chart(fig_pie, use_container_width=True)
-
-conn.close()
+else:
+    st.info("Nessun dato ancora inserito.")
