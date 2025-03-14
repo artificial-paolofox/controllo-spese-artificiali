@@ -61,22 +61,22 @@ with st.form("inserimento_form"):
             st.success("✅ Voce inserita con successo!")
 
 # === Report ===
-anno_corrente = datetime.now().year
-st.header(f"📈 Report completo {anno_corrente}")
-
-# Selettore anno
-anni_disponibili = sorted(df["data"].dt.year.unique())
-anno_selezionato = st.selectbox("📅 Seleziona l'anno", anni_disponibili, index=anni_disponibili.index(anno_corrente) if anno_corrente in anni_disponibili else 0)
-df = df[df["data"].dt.year == anno_selezionato]
+st.header("📈 Report completo")
 
 data_result = supabase.table("budget").select("*").execute()
 df = pd.DataFrame(data_result.data)
 
 if not df.empty:
     df["data"] = pd.to_datetime(df["data"])
+
+    # === SELETTORE ANNO ===
+    anni_disponibili = sorted(df["data"].dt.year.unique())
+    anno_corrente = datetime.now().year
+    anno_selezionato = st.selectbox("📅 Seleziona l'anno", anni_disponibili, index=anni_disponibili.index(anno_corrente) if anno_corrente in anni_disponibili else 0)
+    df = df[df["data"].dt.year == anno_selezionato]
+    st.subheader(f"📅 Report completo {anno_selezionato}")
+
     df["mese"] = pd.Categorical(df["data"].dt.strftime("%b"), categories=["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"], ordered=True)
-    df["mese_label"] = df["data"].dt.strftime("%b")
-    df["mese_ord"] = df["data"].dt.month
 
     # === REPORT 1: Spese per categoria per mese ===
     st.subheader("📊 Spese mensili per categoria")
@@ -89,9 +89,8 @@ if not df.empty:
     for col in pivot.columns:
         fig1.add_trace(go.Bar(name=col, x=pivot.index.astype(str), y=pivot[col]))
 
-    # Totali sopra barre
     totali = pivot.sum(axis=1)
-    for x, y in zip(pivot.index, totali):
+    for x, y in zip(pivot.index.astype(str), totali):
         fig1.add_annotation(
             x=x,
             y=y,
