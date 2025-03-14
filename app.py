@@ -61,12 +61,13 @@ with st.form("inserimento_form"):
             st.success("✅ Voce inserita con successo!")
 
 # === Report ===
-st.header(f"📈 Report completo {datetime.now().year}")
+anno_corrente = datetime.now().year
+st.header(f"📈 Report completo {anno_corrente}")
 
-    # Selettore anno
-    anni_disponibili = sorted(df["data"].dt.year.unique())
-    anno_selezionato = st.selectbox("📅 Seleziona l'anno", anni_disponibili, index=len(anni_disponibili)-1)
-    df = df[df["data"].dt.year == anno_selezionato]
+# Selettore anno
+anni_disponibili = sorted(df["data"].dt.year.unique())
+anno_selezionato = st.selectbox("📅 Seleziona l'anno", anni_disponibili, index=anni_disponibili.index(anno_corrente) if anno_corrente in anni_disponibili else 0)
+df = df[df["data"].dt.year == anno_selezionato]
 
 data_result = supabase.table("budget").select("*").execute()
 df = pd.DataFrame(data_result.data)
