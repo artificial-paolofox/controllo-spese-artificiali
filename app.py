@@ -37,51 +37,51 @@ df = pd.DataFrame(data_result.data)
 
 if not df.empty:
     
-df["data"] = pd.to_datetime(df["data"])
-df["ammontare"] = pd.to_numeric(df["ammontare"], errors="coerce")
-month_order = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
-df["mese"] = pd.Categorical(df["data"].dt.strftime("%b"), categories=month_order, ordered=True)
+    df["data"] = pd.to_datetime(df["data"])
+    df["ammontare"] = pd.to_numeric(df["ammontare"], errors="coerce")
+    month_order = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+    df["mese"] = pd.Categorical(df["data"].dt.strftime("%b"), categories=month_order, ordered=True)
 
-    df["anno"] = df["data"].dt.year
-    df["mese"] = df["data"].dt.strftime("%b")
-    df["periodo"] = df["data"].dt.to_period("M")
+        df["anno"] = df["data"].dt.year
+        df["mese"] = df["data"].dt.strftime("%b")
+        df["periodo"] = df["data"].dt.to_period("M")
 
-    st.title("💰 Budget Manager")
+        st.title("💰 Budget Manager")
 
-    # === Inserimento nuova voce ===
-    with st.expander("➕ Inserisci nuova voce"):
-        categorie_data = df["categoria"].dropna().unique().tolist()
-        sottocategorie_data = df["sottocategoria"].dropna().unique().tolist()
+        # === Inserimento nuova voce ===
+        with st.expander("➕ Inserisci nuova voce"):
+            categorie_data = df["categoria"].dropna().unique().tolist()
+            sottocategorie_data = df["sottocategoria"].dropna().unique().tolist()
 
-        with st.form("inserimento"):
-            col1, col2 = st.columns(2)
-            with col1:
-                data = st.date_input("📅 Data", value=datetime.today()).strftime("%Y-%m-%d")
-                cat_esistente = st.selectbox("Categoria", [""] + sorted(categorie_data))
-                nuova_cat = st.text_input("Nuova categoria")
-                categoria = nuova_cat if nuova_cat else cat_esistente
+            with st.form("inserimento"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    data = st.date_input("📅 Data", value=datetime.today()).strftime("%Y-%m-%d")
+                    cat_esistente = st.selectbox("Categoria", [""] + sorted(categorie_data))
+                    nuova_cat = st.text_input("Nuova categoria")
+                    categoria = nuova_cat if nuova_cat else cat_esistente
 
-                subcat_esistente = st.selectbox("Sottocategoria", [""] + sorted(sottocategorie_data))
-                nuova_subcat = st.text_input("Nuova sottocategoria")
-                sottocategoria = nuova_subcat if nuova_subcat else subcat_esistente
-            with col2:
-                ammontare = st.number_input("💶 Ammontare", step=0.01)
-                tipologia = st.selectbox("📌 Tipologia", ["spesa", "ricavo"])
-                note = st.text_input("📝 Note")
+                    subcat_esistente = st.selectbox("Sottocategoria", [""] + sorted(sottocategorie_data))
+                    nuova_subcat = st.text_input("Nuova sottocategoria")
+                    sottocategoria = nuova_subcat if nuova_subcat else subcat_esistente
+                with col2:
+                    ammontare = st.number_input("💶 Ammontare", step=0.01)
+                    tipologia = st.selectbox("📌 Tipologia", ["spesa", "ricavo"])
+                    note = st.text_input("📝 Note")
 
-            invia = st.form_submit_button("Salva")
-            if invia:
-                errori = []
-                if not categoria or not categoria.isupper():
-                    errori.append("⚠️ Categoria obbligatoria in MAIUSCOLO.")
-                if not sottocategoria or not sottocategoria.islower():
-                    errori.append("⚠️ Sottocategoria obbligatoria in minuscolo.")
-                if note and not note.islower():
-                    errori.append("⚠️ Le note devono essere tutte minuscole.")
-                if errori:
-                    for e in errori:
-                        st.warning(e)
-                else:
+                invia = st.form_submit_button("Salva")
+                if invia:
+                    errori = []
+                    if not categoria or not categoria.isupper():
+                        errori.append("⚠️ Categoria obbligatoria in MAIUSCOLO.")
+                    if not sottocategoria or not sottocategoria.islower():
+                        errori.append("⚠️ Sottocategoria obbligatoria in minuscolo.")
+                    if note and not note.islower():
+                        errori.append("⚠️ Le note devono essere tutte minuscole.")
+                    if errori:
+                        for e in errori:
+                            st.warning(e)
+                    else:
                     supabase.table("budget").insert({
                         "data": data,
                         "categoria": categoria,
