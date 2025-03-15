@@ -36,11 +36,10 @@ data_result = supabase.table("budget").select("*").execute()
 df = pd.DataFrame(data_result.data)
 
 if not df.empty:
-    df["data"] = pd.to_datetime(df["data"])
-
-month_order = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", 
-               "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+    
+df["data"] = pd.to_datetime(df["data"])
 df["ammontare"] = pd.to_numeric(df["ammontare"], errors="coerce")
+month_order = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
 df["mese"] = pd.Categorical(df["data"].dt.strftime("%b"), categories=month_order, ordered=True)
 
     df["anno"] = df["data"].dt.year
