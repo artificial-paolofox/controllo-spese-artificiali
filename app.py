@@ -30,7 +30,7 @@ def check_password():
     else:
         if st.button("🔓 Logout"):
             st.session_state["autenticato"] = False
-            st.experimental_rerun()
+            st.rerun()
 
 check_password()
 
