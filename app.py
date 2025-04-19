@@ -7,7 +7,7 @@ import random
 
 # Palette fissa
 palette = [ '#FF00FF', '#00FFFF', '#39FF14', '#FF5F1F',
-    '#FFFF00', '#7FFF00', '#00FF00', '#FF1493',
+    'FF073A', '#7FFF00', '#00FF00', '#FF1493',
     '#1E90FF', '#FFD700']
 
 # Dizionario per associare colori alle categorie
