@@ -13,8 +13,8 @@ palette = [ '#FF00FF',  # Magenta fluo
     '#39FF14',  # Verde lime fluo
     '#FF1493',  # Rosa shocking
     '#1E90FF',  # Blu neon
-    '#FFFFFF',  # Rosso fluo brillante
-    '#8A2BE2',  # Viola fluo
+    '#FFFFFF',  # Bianco
+    '#8A2BE2',  # Rosso fluo
     '#FF007F'   # Bianco
     ]
 
