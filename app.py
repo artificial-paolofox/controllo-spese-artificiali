@@ -13,9 +13,9 @@ palette = [ '#FF00FF',  # Magenta fluo
     '#39FF14',  # Verde lime fluo
     '#FF1493',  # Rosa shocking
     '#1E90FF',  # Blu neon
-    '#FF073A',  # Rosso fluo brillante (NUOVO!)
+    '#FF073A',  # Rosso fluo brillante
     '#8A2BE2',  # Viola fluo
-    '#FFFFFF'   # Bianco
+    '#FFFFF2'   # Bianco
     ]
 
 # Dizionario per associare colori alle categorie
