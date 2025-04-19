@@ -3,6 +3,25 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 from supabase import create_client, Client
+import random
+
+# Palette fissa
+palette = ['#321325', '#5F0F40', '#9A031E', '#CB793A', '#FCDC4D', '#B33E2C', '#E4AB44', '#FB234B']
+
+# Dizionario per associare colori alle categorie
+colori_categorie = {}
+
+# Funzione per ottenere un colore coerente per ogni categoria
+def get_colore(categoria):
+    if categoria in colori_categorie:
+        return colori_categorie[categoria]
+    else:
+        if len(colori_categorie) < len(palette):
+            colore = palette[len(colori_categorie)]
+        else:
+            colore = "#%06x" % random.randint(0, 0xFFFFFF)
+        colori_categorie[categoria] = colore
+        return colore
 
 # === Supabase Config ===
 url = "https://sjoryqgtggoukbqviqqe.supabase.co"
@@ -10,7 +29,7 @@ key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNq
 
 supabase: Client = create_client(url, key)
 
-st.title("💰 Controllo Finanze")
+st.title("💰 Controllo della Finanza")
 
 # === Protezione con password + logout ===
 def check_password():
@@ -112,7 +131,7 @@ if not df.empty:
 
     fig1 = go.Figure()
     for col in pivot.columns:
-        fig1.add_trace(go.Bar(name=col, x=pivot.index, y=pivot[col]))
+        fig1.add_trace(go.Bar(name=col, x=pivot.index, y=pivot[col], marker_color=get_colore(col)))
 
     totali = pivot.sum(axis=1)
     for x, y in zip(pivot.index, totali):
@@ -141,57 +160,15 @@ if not df.empty:
     # === GRAFICO TORTA ===
     st.subheader("🥧 Distribuzione % delle Spese per Categoria")
     torta = spese.groupby("categoria")["ammontare"].sum()
-    fig3 = go.Figure(data=[go.Pie(labels=torta.index, values=torta.values, hole=0.3)])
+
+    fig3 = go.Figure(data=[go.Pie(
+        labels=torta.index,
+        values=torta.values,
+        marker_colors=[get_colore(cat) for cat in torta.index],
+        hole=0.3
+    )])
     fig3.update_layout(title="Distribuzione % delle Spese")
     st.plotly_chart(fig3, use_container_width=True)
 
-    
 else:
     st.info("Nessun dato ancora disponibile.")
-
-# === Visualizza tabella completa con filtri ===
-st.subheader("🧰 Filtra i dati del database")
-
-# Filtro per tipologia
-tipologie = df["tipologia"].dropna().unique().tolist()
-tipologia_sel = st.selectbox("📌 Tipologia", ["Tutte"] + tipologie)
-
-# Filtro per mese
-mesi_disponibili = df["data"].dt.strftime("%b").unique().tolist()
-mese_sel = st.selectbox("📅 Mese", ["Tutti"] + mesi_disponibili)
-
-# Filtro per categoria o note
-testo_libero = st.text_input("🔍 Cerca per categoria / sottocategoria / note").strip().lower()
-
-# Filtro per ammontare
-min_amm, max_amm = float(df["ammontare"].min()), float(df["ammontare"].max())
-ammontare_range = st.slider("💶 Filtro per ammontare (€)", min_amm, max_amm, (min_amm, max_amm))
-
-# Applica i filtri
-filtro_df = df.copy()
-if tipologia_sel != "Tutte":
-    filtro_df = filtro_df[filtro_df["tipologia"] == tipologia_sel]
-if mese_sel != "Tutti":
-    filtro_df = filtro_df[filtro_df["data"].dt.strftime("%b") == mese_sel]
-if testo_libero:
-    filtro_df = filtro_df[
-        filtro_df["categoria"].str.lower().str.contains(testo_libero) |
-        filtro_df["sottocategoria"].str.lower().str.contains(testo_libero) |
-        filtro_df["note"].str.lower().str.contains(testo_libero)
-    ]
-filtro_df = filtro_df[
-    (filtro_df["ammontare"] >= ammontare_range[0]) & (filtro_df["ammontare"] <= ammontare_range[1])
-    ]
-
-# Visualizza la tabella filtrata
-with st.expander("📋 Visualizza dati grezzi dal database"):
-    if not filtro_df.empty:
-        st.dataframe(filtro_df.sort_values("data", ascending=False), use_container_width=True)
-    else:
-        st.info("Nessun dato corrisponde ai filtri selezionati.")
-
-with st.expander("📋 Visualizza dati grezzi dal database"):
-    if not df.empty:
-        st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
-    else:
-        st.info("Nessun dato disponibile nel database.")
