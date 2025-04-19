@@ -64,53 +64,54 @@ def check_password():
 check_password()
 
 # === Inserimento ===
-with st.expander("➕ Inserisci nuova voce"):
-    with st.form("inserimento_form"):
-
-     categorie_data = supabase.table("budget").select("categoria").execute()
+# Recupera dati categorie e sottocategorie (PRIMA di aprire il form)
+categorie_data = supabase.table("budget").select("categoria").execute()
 sottocategorie_data = supabase.table("budget").select("sottocategoria").execute()
 
 categorie_esistenti = sorted(set(i['categoria'] for i in categorie_data.data if i['categoria']))
 sottocategorie_esistenti = sorted(set(i['sottocategoria'] for i in sottocategorie_data.data if i['sottocategoria']))
 
-with st.form("inserimento_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        data = st.date_input("Data", value=datetime.today()).strftime("%Y-%m-%d")
-        categoria_sel = st.selectbox("Categoria esistente", categorie_esistenti) if categorie_esistenti else ""
-        nuova_categoria = st.text_input("...oppure scrivi una nuova categoria")
-        categoria = nuova_categoria if nuova_categoria else categoria_sel
+# Ora l'expander con il form dentro
+with st.expander("➕ Inserisci nuova voce"):
+    with st.form("inserimento_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            data = st.date_input("Data", value=datetime.today()).strftime("%Y-%m-%d")
+            categoria_sel = st.selectbox("Categoria esistente", categorie_esistenti) if categorie_esistenti else ""
+            nuova_categoria = st.text_input("...oppure scrivi una nuova categoria")
+            categoria = nuova_categoria if nuova_categoria else categoria_sel
 
-        sottocategoria_sel = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti) if sottocategorie_esistenti else ""
-        nuova_sottocategoria = st.text_input("...oppure scrivi una nuova sottocategoria")
-        sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategoria_sel
-    with col2:
-        ammontare = st.number_input("Ammontare (€)", step=0.01)
-        tipologia = st.selectbox("Tipologia", ["spesa", "ricavo"])
-        note = st.text_input("Note")
+            sottocategoria_sel = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti) if sottocategorie_esistenti else ""
+            nuova_sottocategoria = st.text_input("...oppure scrivi una nuova sottocategoria")
+            sottocategoria = nuova_sottocategoria if nuova_sottocategoria else sottocategoria_sel
+        with col2:
+            ammontare = st.number_input("Ammontare (€)", step=0.01)
+            tipologia = st.selectbox("Tipologia", ["spesa", "ricavo"])
+            note = st.text_input("Note")
 
-    submitted = st.form_submit_button("Inserisci")
-    if submitted:
-        errori = []
-        if not categoria or not categoria.isupper():
-            errori.append("⚠️ Categoria obbligatoria e tutta MAIUSCOLA.")
-        if not sottocategoria or not sottocategoria.islower():
-            errori.append("⚠️ Sottocategoria obbligatoria e tutta minuscola.")
-        if note and not note.islower():
-            errori.append("⚠️ Le note devono essere tutte minuscole.")
-        if errori:
-            for e in errori:
-                st.warning(e)
-        else:
-            supabase.table("budget").insert({
-                "data": data,
-                "categoria": categoria,
-                "sottocategoria": sottocategoria,
-                "ammontare": float(ammontare),
-                "note": note,
-                "tipologia": tipologia
-            }).execute()
-            st.success("✅ Voce inserita con successo!")
+        submitted = st.form_submit_button("Inserisci")
+        if submitted:
+            errori = []
+            if not categoria or not categoria.isupper():
+                errori.append("⚠️ Categoria obbligatoria e tutta MAIUSCOLA.")
+            if not sottocategoria or not sottocategoria.islower():
+                errori.append("⚠️ Sottocategoria obbligatoria e tutta minuscola.")
+            if note and not note.islower():
+                errori.append("⚠️ Le note devono essere tutte minuscole.")
+            if errori:
+                for e in errori:
+                    st.warning(e)
+            else:
+                supabase.table("budget").insert({
+                    "data": data,
+                    "categoria": categoria,
+                    "sottocategoria": sottocategoria,
+                    "ammontare": float(ammontare),
+                    "note": note,
+                    "tipologia": tipologia
+                }).execute()
+                st.success("✅ Voce inserita con successo!")
+
 
 # === Report ===
 st.header("📈 Report completo")
