@@ -64,9 +64,10 @@ def check_password():
 check_password()
 
 # === Inserimento ===
-st.header("➕ Inserisci nuova voce")
+with st.expander("➕ Inserisci nuova voce"):
+    with st.form("inserimento_form"):
 
-categorie_data = supabase.table("budget").select("categoria").execute()
+     categorie_data = supabase.table("budget").select("categoria").execute()
 sottocategorie_data = supabase.table("budget").select("sottocategoria").execute()
 
 categorie_esistenti = sorted(set(i['categoria'] for i in categorie_data.data if i['categoria']))
