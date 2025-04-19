@@ -172,7 +172,8 @@ if not df.empty:
 
 else:
     st.info("Nessun dato ancora disponibile.")
-    # === Visualizza tabella completa con filtri ===
+
+# === Visualizza tabella completa con filtri ===
 st.subheader("🧰 Filtra i dati del database")
 
 # Filtro per tipologia
