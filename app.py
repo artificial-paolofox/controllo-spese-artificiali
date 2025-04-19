@@ -6,7 +6,9 @@ from supabase import create_client, Client
 import random
 
 # Palette fissa
-palette = ['#FF1100', '#87D1E6', '#F1E561', '#F67700', '#002CF2', '#EE02FF', '#AB3428', '#A00D00']
+palette = [ '#FF00FF', '#00FFFF', '#39FF14', '#FF5F1F',
+    '#FFFF00', '#7FFF00', '#00FF00', '#FF1493',
+    '#1E90FF', '#FFD700']
 
 # Dizionario per associare colori alle categorie
 colori_categorie = {}
