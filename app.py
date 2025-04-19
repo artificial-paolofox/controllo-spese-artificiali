@@ -5,33 +5,25 @@ from datetime import datetime
 from supabase import create_client, Client
 import random
 
-# Palette fissa
-palette = [ '#FFFFFF',  # Magenta fluo
-    '#00FFFF',  # Ciano fluo
-    '#FF5F1F',  # Arancione neon
-    '#FFFF00',  # Giallo fluo
-    '#39FF14',  # Verde lime fluo
-    '#FF1493',  # Rosa shocking
-    '#1E90FF',  # Blu neon
-    '#FF073A',  # Rosso fluo brillante
-    '#8A2BE2',  # Viola fluo
-    '#FFFFFF'   # Bianco puro (nuovo!)
-    ]
+# Palette fluo finale
+palette = [
+    '#FF00FF', '#00FFFF', '#FF5F1F', '#FFFF00',
+    '#39FF14', '#FF1493', '#1E90FF', '#FF073A',
+    '#8A2BE2', '#FFFFFF'
+]
 
 # Dizionario per associare colori alle categorie
 colori_categorie = {}
 
-# Funzione per ottenere un colore coerente per ogni categoria
-def get_colore(categoria):
-    if categoria in colori_categorie:
-        return colori_categorie[categoria]
-    else:
-        if len(colori_categorie) < len(palette):
-            colore = palette[len(colori_categorie)]
+def crea_colori(categorie):
+    categorie_ordinate = sorted(categorie)
+    colori = {}
+    for i, cat in enumerate(categorie_ordinate):
+        if i < len(palette):
+            colori[cat] = palette[i]
         else:
-            colore = "#%06x" % random.randint(0, 0xFFFFFF)
-        colori_categorie[categoria] = colore
-        return colore
+            colori[cat] = "#%06x" % random.randint(0, 0xFFFFFF)
+    return colori
 
 # === Supabase Config ===
 url = "https://sjoryqgtggoukbqviqqe.supabase.co"
@@ -39,7 +31,7 @@ key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNq
 
 supabase: Client = create_client(url, key)
 
-st.title("💰 Controllo della Finanza")
+st.title("💰 Controllo Finanze")
 
 # === Protezione con password + logout ===
 def check_password():
@@ -64,14 +56,12 @@ def check_password():
 check_password()
 
 # === Inserimento ===
-# Recupera dati categorie e sottocategorie (PRIMA di aprire il form)
 categorie_data = supabase.table("budget").select("categoria").execute()
 sottocategorie_data = supabase.table("budget").select("sottocategoria").execute()
 
 categorie_esistenti = sorted(set(i['categoria'] for i in categorie_data.data if i['categoria']))
 sottocategorie_esistenti = sorted(set(i['sottocategoria'] for i in sottocategorie_data.data if i['sottocategoria']))
 
-# Ora l'expander con il form dentro
 with st.expander("➕ Inserisci nuova voce"):
     with st.form("inserimento_form"):
         col1, col2 = st.columns(2)
@@ -112,7 +102,6 @@ with st.expander("➕ Inserisci nuova voce"):
                 }).execute()
                 st.success("✅ Voce inserita con successo!")
 
-
 # === Report ===
 st.header("📈 Report completo")
 
@@ -122,14 +111,13 @@ df = pd.DataFrame(data_result.data)
 if not df.empty:
     df["data"] = pd.to_datetime(df["data"])
 
-    # === SELETTORE ANNO ===
     anni_disponibili = sorted(df["data"].dt.year.unique())
     anno_corrente = datetime.now().year
     anno_selezionato = st.selectbox("📅 Seleziona l'anno", anni_disponibili, index=anni_disponibili.index(anno_corrente) if anno_corrente in anni_disponibili else 0)
     df = df[df["data"].dt.year == anno_selezionato]
     st.subheader(f"📅 Report completo {anno_selezionato}")
 
-    # === GRAFICO BARRE ===
+    # GRAFICO BARRE
     spese = df[df["tipologia"] == "spesa"]
     month_map = {"01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr", "05": "Mag", "06": "Giu", "07": "Lug", "08": "Ago", "09": "Set", "10": "Ott", "11": "Nov", "12": "Dic"}
     month_order = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
@@ -141,9 +129,11 @@ if not df.empty:
     grouped = spese.groupby(["mese_str", "categoria"])["ammontare"].sum().reset_index()
     pivot = grouped.pivot(index="mese_str", columns="categoria", values="ammontare").fillna(0)
 
+    colori_categorie = crea_colori(pivot.columns)
+
     fig1 = go.Figure()
     for col in pivot.columns:
-        fig1.add_trace(go.Bar(name=col, x=pivot.index, y=pivot[col], marker_color=get_colore(col)))
+        fig1.add_trace(go.Bar(name=col, x=pivot.index, y=pivot[col], marker_color=colori_categorie[col]))
 
     totali = pivot.sum(axis=1)
     for x, y in zip(pivot.index, totali):
@@ -152,7 +142,7 @@ if not df.empty:
     fig1.update_layout(barmode="stack", title="Spese per Categoria (Mensili)", xaxis_title="Mese", yaxis_title="€", xaxis_tickangle=-15)
     st.plotly_chart(fig1, use_container_width=True)
 
-    # === GRAFICO TREND ===
+    # GRAFICO TREND
     df["mese_num"] = df["data"].dt.strftime("%m")
     df["periodo"] = df["mese_num"].map(month_map)
     df["periodo"] = pd.Categorical(df["periodo"], categories=month_order, ordered=True)
@@ -169,23 +159,22 @@ if not df.empty:
     fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # === GRAFICO TORTA ===
+    # GRAFICO TORTA
     st.subheader("🥧 Distribuzione % delle Spese per Categoria")
     torta = spese.groupby("categoria")["ammontare"].sum()
+
+    colori_categorie_torta = crea_colori(torta.index)
 
     fig3 = go.Figure(data=[go.Pie(
         labels=torta.index,
         values=torta.values,
-        marker_colors=[get_colore(cat) for cat in torta.index],
+        marker_colors=[colori_categorie_torta[cat] for cat in torta.index],
         hole=0.3
     )])
     fig3.update_layout(title="Distribuzione % delle Spese")
     st.plotly_chart(fig3, use_container_width=True)
 
-else:
-    st.info("Nessun dato ancora disponibile.")
-
-# === Visualizza tabella completa con filtri ===
+    # === Visualizza tabella completa con filtri ===
 st.subheader("🧰 Filtra i dati del database")
 
 # Filtro per tipologia
@@ -220,15 +209,56 @@ filtro_df = filtro_df[
     ]
 
 # Visualizza la tabella filtrata
-with st.expander("📋 Visualizza dati grezzi dal database"):
+with st.expander("📋 Visualizza dati filtrati dal database"):
     if not filtro_df.empty:
         st.dataframe(filtro_df.sort_values("data", ascending=False), use_container_width=True)
     else:
         st.info("Nessun dato corrisponde ai filtri selezionati.")
 
-with st.expander("📋 Visualizza dati grezzi dal database"):
+with st.expander("📋 Visualizza tabella database"):
     if not df.empty:
         st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
     else:
         st.info("Nessun dato disponibile nel database.")
+
+    # === SEZIONE NUOVA: GESTIONE RECORD ===
+    st.header("🛠️ Gestione Record")
+
+    with st.expander("✏️ Modifica o Cancella un Record"):
+        record_selezionato = st.selectbox("Seleziona un record", df.index)
+
+        if record_selezionato is not None:
+            record = df.loc[record_selezionato]
+
+            with st.form("modifica_form"):
+                nuova_data = st.date_input("Data", value=record["data"]).strftime("%Y-%m-%d")
+                nuova_categoria = st.text_input("Categoria", value=record["categoria"])
+                nuova_sottocategoria = st.text_input("Sottocategoria", value=record["sottocategoria"])
+                nuovo_ammontare = st.number_input("Ammontare (€)", value=float(record["ammontare"]), step=0.01)
+                nuova_note = st.text_input("Note", value=record["note"])
+                nuova_tipologia = st.selectbox("Tipologia", ["spesa", "ricavo"], index=0 if record["tipologia"]=="spesa" else 1)
+
+                col_mod, col_canc = st.columns(2)
+
+                with col_mod:
+                    salva_mod = st.form_submit_button("💾 Salva modifiche")
+                with col_canc:
+                    cancella = st.form_submit_button("🗑️ Cancella record")
+
+                if salva_mod:
+                    supabase.table("budget").update({
+                        "data": nuova_data,
+                        "categoria": nuova_categoria,
+                        "sottocategoria": nuova_sottocategoria,
+                        "ammontare": float(nuovo_ammontare),
+                        "note": nuova_note,
+                        "tipologia": nuova_tipologia
+                    }).eq("id", record["id"]).execute()
+                    st.success("✅ Record aggiornato con successo!")
+                    st.rerun()
+
+                if cancella:
+                    supabase.table("budget").delete().eq("id", record["id"]).execute()
+                    st.success("✅ Record cancellato con successo!")
+                    st.rerun()
 
