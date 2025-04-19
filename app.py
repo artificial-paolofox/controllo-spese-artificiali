@@ -12,9 +12,6 @@ palette = [
     '#8A2BE2', '#FFFFFF'
 ]
 
-# Dizionario per associare colori alle categorie
-colori_categorie = {}
-
 def crea_colori(categorie):
     categorie_ordinate = sorted(categorie)
     colori = {}
@@ -117,7 +114,6 @@ if not df.empty:
     df = df[df["data"].dt.year == anno_selezionato]
     st.subheader(f"📅 Report completo {anno_selezionato}")
 
-    # GRAFICO BARRE
     spese = df[df["tipologia"] == "spesa"]
     month_map = {"01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr", "05": "Mag", "06": "Giu", "07": "Lug", "08": "Ago", "09": "Set", "10": "Ott", "11": "Nov", "12": "Dic"}
     month_order = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
@@ -142,7 +138,6 @@ if not df.empty:
     fig1.update_layout(barmode="stack", title="Spese per Categoria (Mensili)", xaxis_title="Mese", yaxis_title="€", xaxis_tickangle=-15)
     st.plotly_chart(fig1, use_container_width=True)
 
-    # GRAFICO TREND
     df["mese_num"] = df["data"].dt.strftime("%m")
     df["periodo"] = df["mese_num"].map(month_map)
     df["periodo"] = pd.Categorical(df["periodo"], categories=month_order, ordered=True)
@@ -159,7 +154,6 @@ if not df.empty:
     fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # GRAFICO TORTA
     st.subheader("🥧 Distribuzione % delle Spese per Categoria")
     torta = spese.groupby("categoria")["ammontare"].sum()
 
@@ -174,7 +168,7 @@ if not df.empty:
     fig3.update_layout(title="Distribuzione % delle Spese")
     st.plotly_chart(fig3, use_container_width=True)
 
-    # === Visualizza tabella completa con filtri ===
+# === Visualizza tabella completa con filtri ===
 st.subheader("🧰 Filtra i dati del database")
 
 # Filtro per tipologia
@@ -206,59 +200,55 @@ if testo_libero:
     ]
 filtro_df = filtro_df[
     (filtro_df["ammontare"] >= ammontare_range[0]) & (filtro_df["ammontare"] <= ammontare_range[1])
-    ]
+]
 
 # Visualizza la tabella filtrata
-with st.expander("📋 Visualizza dati filtrati dal database"):
+with st.expander("📋 Visualizza dati grezzi dal database"):
     if not filtro_df.empty:
         st.dataframe(filtro_df.sort_values("data", ascending=False), use_container_width=True)
     else:
         st.info("Nessun dato corrisponde ai filtri selezionati.")
 
-with st.expander("📋 Visualizza tabella database"):
-    if not df.empty:
-        st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
-    else:
-        st.info("Nessun dato disponibile nel database.")
+# === GESTIONE RECORD ===
+st.header("🛠️ Gestione Record")
 
-    # === SEZIONE NUOVA: GESTIONE RECORD ===
-    st.header("🛠️ Gestione Record")
+with st.expander("✏️ Modifica o Cancella un Record"):
+    record_selezionato = st.selectbox("Seleziona un record", df.index)
 
-    with st.expander("✏️ Modifica o Cancella un Record"):
-        record_selezionato = st.selectbox("Seleziona un record", df.index)
+    if record_selezionato is not None:
+        record = df.loc[record_selezionato]
 
-        if record_selezionato is not None:
-            record = df.loc[record_selezionato]
+        with st.form("modifica_form"):
+            nuova_data = st.date_input("Data", value=record["data"]).strftime("%Y-%m-%d")
+            nuova_categoria = st.text_input("Categoria", value=record["categoria"])
+            nuova_sottocategoria = st.text_input("Sottocategoria", value=record["sottocategoria"])
+            nuovo_ammontare = st.number_input("Ammontare (€)", value=float(record["ammontare"]), step=0.01)
+            nuova_note = st.text_input("Note", value=record["note"])
+            nuova_tipologia = st.selectbox("Tipologia", ["spesa", "ricavo"], index=0 if record["tipologia"]=="spesa" else 1)
 
-            with st.form("modifica_form"):
-                nuova_data = st.date_input("Data", value=record["data"]).strftime("%Y-%m-%d")
-                nuova_categoria = st.text_input("Categoria", value=record["categoria"])
-                nuova_sottocategoria = st.text_input("Sottocategoria", value=record["sottocategoria"])
-                nuovo_ammontare = st.number_input("Ammontare (€)", value=float(record["ammontare"]), step=0.01)
-                nuova_note = st.text_input("Note", value=record["note"])
-                nuova_tipologia = st.selectbox("Tipologia", ["spesa", "ricavo"], index=0 if record["tipologia"]=="spesa" else 1)
+            col_mod, col_canc = st.columns(2)
 
-                col_mod, col_canc = st.columns(2)
+            with col_mod:
+                salva_mod = st.form_submit_button("💾 Salva modifiche")
+            with col_canc:
+                cancella = st.form_submit_button("🗑️ Cancella record")
 
-                with col_mod:
-                    salva_mod = st.form_submit_button("💾 Salva modifiche")
-                with col_canc:
-                    cancella = st.form_submit_button("🗑️ Cancella record")
+            if salva_mod:
+                supabase.table("budget").update({
+                    "data": nuova_data,
+                    "categoria": nuova_categoria,
+                    "sottocategoria": nuova_sottocategoria,
+                    "ammontare": float(nuovo_ammontare),
+                    "note": nuova_note,
+                    "tipologia": nuova_tipologia
+                }).eq("id", record["id"]).execute()
+                st.success("✅ Record aggiornato con successo!")
+                st.rerun()
 
-                if salva_mod:
-                    supabase.table("budget").update({
-                        "data": nuova_data,
-                        "categoria": nuova_categoria,
-                        "sottocategoria": nuova_sottocategoria,
-                        "ammontare": float(nuovo_ammontare),
-                        "note": nuova_note,
-                        "tipologia": nuova_tipologia
-                    }).eq("id", record["id"]).execute()
-                    st.success("✅ Record aggiornato con successo!")
-                    st.rerun()
+            if cancella:
+                supabase.table("budget").delete().eq("id", record["id"]).execute()
+                st.success("✅ Record cancellato con successo!")
+                st.rerun()
 
-                if cancella:
-                    supabase.table("budget").delete().eq("id", record["id"]).execute()
-                    st.success("✅ Record cancellato con successo!")
-                    st.rerun()
-
+else:
+    st.info("Nessun dato ancora disponibile.")
