@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
 import plotly.graph_objects as go
 from datetime import datetime
 from supabase import create_client, Client
@@ -187,6 +188,56 @@ else:
 
 # === Visualizza tabella completa con filtri ===
 st.subheader("🧰 Filtra i dati del database")
+
+with st.expander("✏️ Modifica o elimina un record"):
+    if not df.empty:
+        df_sorted = df.sort_values("data", ascending=False).reset_index(drop=True)
+        record_index = st.selectbox("Seleziona il record da modificare/eliminare", df_sorted.index, format_func=lambda i: f"{df_sorted.loc[i, 'data'].date()} | {df_sorted.loc[i, 'categoria']} | {df_sorted.loc[i, 'ammontare']}€")
+
+        record = df_sorted.loc[record_index]
+
+        # Campi precompilati
+        mod_data = st.date_input("Data", value=record["data"])
+        mod_categoria = st.text_input("Categoria", value=record["categoria"])
+        mod_sottocategoria = st.text_input("Sottocategoria", value=record["sottocategoria"])
+        mod_ammontare = st.number_input("Ammontare (€)", value=record["ammontare"], step=0.01)
+        mod_note = st.text_input("Note", value=record["note"] or "")
+        mod_tipologia = st.selectbox("Tipologia", ["spesa", "ricavo"], index=0 if record["tipologia"] == "spesa" else 1)
+
+        # Azioni
+        col_mod, col_del = st.columns(2)
+        with col_mod:
+            if st.button("💾 Salva Modifiche"):
+                try:
+                    conn = sqlite3.connect("budget_tracker.db")
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE budget
+                        SET data=?, categoria=?, sottocategoria=?, ammontare=?, note=?, tipologia=?
+                        WHERE id=?
+                    """, (mod_data.strftime("%Y-%m-%d"), mod_categoria, mod_sottocategoria, mod_ammontare, mod_note, mod_tipologia, record["id"]))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Modifica salvata. Ricarica la pagina.")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"Errore: {e}")
+
+        with col_del:
+            if st.button("🗑️ Elimina Record"):
+                try:
+                    conn = sqlite3.connect("budget_tracker.db")
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM budget WHERE id=?", (record["id"],))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Record eliminato. Ricarica la pagina.")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"Errore: {e}")
+    else:
+        st.info("Nessun dato disponibile per la modifica o l'eliminazione.")
+
 
 # Filtro per tipologia
 tipologie = df["tipologia"].dropna().unique().tolist()
