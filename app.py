@@ -141,33 +141,30 @@ with st.expander("✏️ Modifica o elimina un record"):
         col_mod, col_del = st.columns(2)
         with col_mod:
             if st.button("💾 Salva Modifiche"):
-                try:
-                    conn = sqlite3.connect("budget_tracker.db")
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        UPDATE budget
-                        SET data=?, categoria=?, sottocategoria=?, ammontare=?, note=?, tipologia=?
-                        WHERE id=?
-                    """, (mod_data.strftime("%Y-%m-%d"), mod_categoria, mod_sottocategoria, mod_ammontare, mod_note, mod_tipologia, record["id"]))
-                    conn.commit()
-                    conn.close()
-                    st.success("✅ Modifica salvata. Ricarica la pagina.")
-                    st.experimental_rerun()
-                except Exception as e:
-                    st.error(f"Errore: {e}")
+              try:
+                  supabase.table("budget").update({
+                  "data": mod_data.strftime("%Y-%m-%d"),
+                  "categoria": mod_categoria,
+                  "sottocategoria": mod_sottocategoria,
+                  "ammontare": mod_ammontare,
+                  "note": mod_note,
+                  "tipologia": mod_tipologia
+                  }).eq("id", record["id"]).execute()
+                  st.success("✅ Modifica salvata. Ricarica la pagina.")
+                  st.experimental_rerun()
+              except Exception as e:
+                   st.error(f"Errore: {e}")
+
 
         with col_del:
             if st.button("🗑️ Elimina Record"):
-                try:
-                    conn = sqlite3.connect("budget_tracker.db")
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM budget WHERE id=?", (record["id"],))
-                    conn.commit()
-                    conn.close()
-                    st.success("✅ Record eliminato. Ricarica la pagina.")
-                    st.experimental_rerun()
-                except Exception as e:
-                    st.error(f"Errore: {e}")
+               try:
+                 supabase.table("budget").delete().eq("id", record["id"]).execute()
+                 st.success("✅ Record eliminato. Ricarica la pagina.")
+                 st.experimental_rerun()
+               except Exception as e:
+                st.error(f"Errore: {e}")
+
     else:
         st.info("Nessun dato disponibile per la modifica o l'eliminazione.")
 
