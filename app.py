@@ -16,7 +16,7 @@ palette = [ '#FF00FF',  # Magenta fluo
     '#1E90FF',  # Blu neon
     '#FF073A',  # Rosso fluo brillante
     '#8A2BE2',  # Viola fluo
-    '#FFFFFF'   # Bianco puro (nuovo!)
+    '#FFFFFF'   # Bianco puro 
     ]
 
 # Dizionario per associare colori alle categorie
