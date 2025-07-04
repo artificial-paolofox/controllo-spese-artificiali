@@ -259,9 +259,6 @@ mese_sel = st.selectbox("📅 Mese", ["Tutti"] + mesi_disponibili)
 # Filtro per categoria o note
 testo_libero = st.text_input("🔍 Cerca per categoria / sottocategoria / note").strip().lower()
 
-# Filtro per ammontare
-min_amm, max_amm = float(df["ammontare"].min()), float(df["ammontare"].max())
-ammontare_range = st.slider("💶 Filtro per ammontare (€)", min_amm, max_amm, (min_amm, max_amm))
 
 # Applica i filtri
 filtro_df = df.copy()
@@ -275,9 +272,7 @@ if testo_libero:
         filtro_df["sottocategoria"].str.lower().str.contains(testo_libero) |
         filtro_df["note"].str.lower().str.contains(testo_libero)
     ]
-filtro_df = filtro_df[
-    (filtro_df["ammontare"] >= ammontare_range[0]) & (filtro_df["ammontare"] <= ammontare_range[1])
-    ]
+
 
 # Visualizza la tabella filtrata
 with st.expander("📋 Visualizza dati grezzi dal database"):
@@ -286,9 +281,5 @@ with st.expander("📋 Visualizza dati grezzi dal database"):
     else:
         st.info("Nessun dato corrisponde ai filtri selezionati.")
 
-with st.expander("📋 Visualizza dati grezzi dal database"):
-    if not df.empty:
-        st.dataframe(df.sort_values("data", ascending=False), use_container_width=True)
-    else:
-        st.info("Nessun dato disponibile nel database.")
+
 
