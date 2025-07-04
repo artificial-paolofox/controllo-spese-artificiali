@@ -7,7 +7,7 @@ from supabase import create_client, Client
 import random
 
 # Palette fissa
-palette = [ '#FFFFFF',  # Magenta fluo
+palette = [ '#FF00FF',  # Magenta fluo
     '#00FFFF',  # Ciano fluo
     '#FF5F1F',  # Arancione neon
     '#FFFF00',  # Giallo fluo
