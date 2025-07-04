@@ -151,7 +151,7 @@ with st.expander("✏️ Modifica o elimina un record"):
                   "tipologia": mod_tipologia
                   }).eq("id", record["id"]).execute()
                   st.success("✅ Modifica salvata. Ricarica la pagina.")
-                  st.experimental_rerun()
+                  st.rerun()
               except Exception as e:
                    st.error(f"Errore: {e}")
 
@@ -161,7 +161,7 @@ with st.expander("✏️ Modifica o elimina un record"):
                try:
                  supabase.table("budget").delete().eq("id", record["id"]).execute()
                  st.success("✅ Record eliminato. Ricarica la pagina.")
-                 st.experimental_rerun()
+                 st.rerun()
                except Exception as e:
                 st.error(f"Errore: {e}")
 
