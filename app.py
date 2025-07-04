@@ -122,6 +122,7 @@ else:
 
 
 with st.expander("✏️ Modifica o elimina un record"):
+    df["data"] = pd.to_datetime(df["data"])  # ✅ Conversione in datetime
     if not df.empty:
         df_sorted = df.sort_values("data", ascending=False).reset_index(drop=True)
         record_index = st.selectbox("Seleziona il record da modificare/eliminare", df_sorted.index, format_func=lambda i: f"{df_sorted.loc[i, 'data'].date()} | {df_sorted.loc[i, 'categoria']} | {df_sorted.loc[i, 'ammontare']}€")
