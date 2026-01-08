@@ -233,7 +233,7 @@ if not df.empty:
     st.subheader("📅 Riepilogo Mensile")
 
     riepilogo = pd.DataFrame({
-        "Mese": trend.index,
+        
         "Ricavi": trend.get("ricavo", pd.Series(0, index=trend.index)),
         "Spese": trend.get("spesa", pd.Series(0, index=trend.index)),
         "Saldo": trend.get("saldo", pd.Series(0, index=trend.index)),
