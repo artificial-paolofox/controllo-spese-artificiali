@@ -236,6 +236,27 @@ if not df.empty:
         col1.metric("Totale Ricavi", f"€ {totale_ricavi:,.2f}")
         col2.metric("Totale Spese", f"€ {totale_spese:,.2f}")
         col3.metric("Saldo Totale", f"€ {saldo_totale:,.2f}", delta=f"{saldo_totale:+,.2f}")
+
+        # === Riepilogo Mensile Ricavi, Spese e Saldo ===
+        st.markdown("### 📆 Riepilogo Mensile")
+
+        # Calcola i totali mensili
+        riepilogo_mensile = df.groupby(df["data"].dt.strftime("%b")).agg({
+            "ammontare": [
+                lambda x: x[df["tipologia"] == "ricavo"].sum(),
+                lambda x: x[df["tipologia"] == "spesa"].sum()
+            ]
+        })
+
+        riepilogo_mensile.columns = ["Ricavi", "Spese"]
+        riepilogo_mensile["Saldo"] = riepilogo_mensile["Ricavi"] - riepilogo_mensile["Spese"]
+
+        # Ordina i mesi correttamente
+        ordine_mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+        riepilogo_mensile = riepilogo_mensile.reindex(ordine_mesi).dropna(how="all")
+
+        # Mostra il riepilogo con font più piccolo
+        st.dataframe(riepilogo_mensile.style.format("€ {:,.2f}"), use_container_width=True, height=300)
     else:
         st.warning("⚠️ Nessun dato disponibile per generare il grafico trend.")
         
