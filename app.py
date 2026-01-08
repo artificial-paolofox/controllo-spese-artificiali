@@ -242,7 +242,7 @@ if not df.empty:
         })
 
         riepilogo.index.name = "Mese"
-        riepilogo.reset_index(inplace=True)
+        
 
         # Formattazione in stile euro
         riepilogo["ricavo"] = riepilogo["ricavo"].map("€ {:,.2f}".format)
