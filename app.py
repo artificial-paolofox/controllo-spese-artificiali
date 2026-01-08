@@ -234,7 +234,13 @@ if not df.empty:
         # === RIEPILOGO MENSILE (tabella) ===
         st.subheader("📅 Riepilogo Mensile")
 
-        riepilogo = trend[["ricavo", "spesa", "saldo"]].copy()
+        riepilogo = pd.DataFrame({
+            "Mese": trend.index,
+            "Ricavi": trend.get("ricavo", pd.Series(0, index=trend.index)),
+            "Spese": trend.get("spesa", pd.Series(0, index=trend.index)),
+            "Saldo": trend.get("saldo", pd.Series(0, index=trend.index)),
+        })
+
         riepilogo.index.name = "Mese"
         riepilogo.reset_index(inplace=True)
 
