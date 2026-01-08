@@ -226,6 +226,16 @@ if not df.empty:
 
         fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
         st.plotly_chart(fig2, use_container_width=True)
+        # === Riepilogo Totale Ricavi e Spese dell'anno ===
+        totale_spese = df[df["tipologia"] == "spesa"]["ammontare"].sum()
+        totale_ricavi = df[df["tipologia"] == "ricavo"]["ammontare"].sum()
+        saldo_totale = totale_ricavi - totale_spese
+
+        st.markdown("### 💡 Riepilogo Totale Annuale")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Totale Ricavi", f"€ {totale_ricavi:,.2f}")
+        col2.metric("Totale Spese", f"€ {totale_spese:,.2f}")
+        col3.metric("Saldo Totale", f"€ {saldo_totale:,.2f}", delta=f"{saldo_totale:+,.2f}")
     else:
         st.warning("⚠️ Nessun dato disponibile per generare il grafico trend.")
         
