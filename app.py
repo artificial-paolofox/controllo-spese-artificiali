@@ -213,16 +213,23 @@ if not df.empty:
     df["periodo"] = pd.Categorical(df["periodo"], categories=month_order, ordered=True)
 
     trend = df.groupby(["periodo", "tipologia"])["ammontare"].sum().unstack().fillna(0)
-    trend["saldo"] = trend.get("ricavo", 0) - trend.get("spesa", 0)
-    trend = trend.reindex(month_order).dropna(how="all")
+    if not trend.empty:
+        trend["saldo"] = trend.get("ricavo", 0) - trend.get("spesa", 0)
+        trend = trend.reindex(month_order).dropna(how="all")
 
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=trend.index, y=trend.get("ricavo", 0), name="Ricavi", line=dict(color="green")))
-    fig2.add_trace(go.Scatter(x=trend.index, y=trend.get("spesa", 0), name="Spese", line=dict(color="red")))
-    fig2.add_trace(go.Scatter(x=trend.index, y=trend["saldo"], name="Saldo", line=dict(color="gold")))
+        fig2 = go.Figure()
+        if "ricavo" in trend.columns:
+           fig2.add_trace(go.Scatter(x=trend.index, y=trend["ricavo"], name="Ricavi", line=dict(color="green")))
+        if "spesa" in trend.columns:
+           fig2.add_trace(go.Scatter(x=trend.index, y=trend["spesa"], name="Spese", line=dict(color="red")))
+        fig2.add_trace(go.Scatter(x=trend.index, y=trend["saldo"], name="Saldo", line=dict(color="gold")))
 
-    fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
-    st.plotly_chart(fig2, use_container_width=True)
+        fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("⚠️ Nessun dato disponibile per generare il grafico trend.")
+        
+
 
     # === GRAFICO TORTA ===
     st.subheader("🥧 Distribuzione % delle Spese per Categoria")
