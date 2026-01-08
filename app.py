@@ -213,72 +213,66 @@ if not df.empty:
     df["periodo"] = pd.Categorical(df["periodo"], categories=month_order, ordered=True)
 
     trend = df.groupby(["periodo", "tipologia"])["ammontare"].sum().unstack().fillna(0)
-    if not trend.empty:
-        trend["saldo"] = trend.get("ricavo", 0) - trend.get("spesa", 0)
-        trend = trend.reindex(month_order).dropna(how="all")
-
-        fig2 = go.Figure()
-        if "ricavo" in trend.columns:
-           fig2.add_trace(go.Scatter(x=trend.index, y=trend["ricavo"], name="Ricavi", line=dict(color="green")))
-        if "spesa" in trend.columns:
-           fig2.add_trace(go.Scatter(x=trend.index, y=trend["spesa"], name="Spese", line=dict(color="red")))
-        fig2.add_trace(go.Scatter(x=trend.index, y=trend["saldo"], name="Saldo", line=dict(color="gold")))
-
-        fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
-        st.plotly_chart(fig2, use_container_width=True)
-        # === Riepilogo Totale Ricavi e Spese dell'anno ===
-        totale_spese = df[df["tipologia"] == "spesa"]["ammontare"].sum()
-        totale_ricavi = df[df["tipologia"] == "ricavo"]["ammontare"].sum()
-        saldo_totale = totale_ricavi - totale_spese
-
-        # === RIEPILOGO MENSILE (tabella) ===
-        st.subheader("📅 Riepilogo Mensile")
-
-        riepilogo = pd.DataFrame({
-            "Mese": trend.index,
-            "Ricavi": trend.get("ricavo", pd.Series(0, index=trend.index)),
-            "Spese": trend.get("spesa", pd.Series(0, index=trend.index)),
-            "Saldo": trend.get("saldo", pd.Series(0, index=trend.index)),
-        })
-
-        riepilogo.index.name = "Mese"
-        
-
-        # Formattazione in stile euro
-        riepilogo["ricavo"] = riepilogo["ricavo"].map("€ {:,.2f}".format)
-        riepilogo["spesa"] = riepilogo["spesa"].map("€ {:,.2f}".format)
-        riepilogo["saldo"] = riepilogo["saldo"].map("€ {:,.2f}".format)
-
-        st.dataframe(riepilogo, use_container_width=True)
+    trend["saldo"] = trend.get("ricavo", 0) - trend.get("spesa", 0)
+    trend = trend.reindex(month_order).fillna(0)
 
 
-        st.markdown("### 💡 Riepilogo Totale Annuale")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Totale Ricavi", f"€ {totale_ricavi:,.2f}")
-        col2.metric("Totale Spese", f"€ {totale_spese:,.2f}")
-        col3.metric("Saldo Totale", f"€ {saldo_totale:,.2f}", delta=f"{saldo_totale:+,.2f}")
 
-        
-    else:
+    fig2 = go.Figure()
+    if "ricavo" in trend.columns:
+        fig2.add_trace(go.Scatter(x=trend.index, y=trend["ricavo"], name="Ricavi", line=dict(color="green")))
+    if "spesa" in trend.columns:
+        fig2.add_trace(go.Scatter(x=trend.index, y=trend["spesa"], name="Spese", line=dict(color="red")))
+    fig2.add_trace(go.Scatter(x=trend.index, y=trend["saldo"], name="Saldo", line=dict(color="gold")))
+
+    fig2.update_layout(title="Andamento Ricavi / Spese / Saldo", xaxis_title="Mese", yaxis_title="€")
+    st.plotly_chart(fig2, use_container_width=True)
+
+
+    # === RIEPILOGO MENSILE (tabella) ===
+    st.subheader("📅 Riepilogo Mensile")
+
+    riepilogo = pd.DataFrame({
+        "Mese": trend.index,
+        "Ricavi": trend.get("ricavo", pd.Series(0, index=trend.index)),
+        "Spese": trend.get("spesa", pd.Series(0, index=trend.index)),
+        "Saldo": trend.get("saldo", pd.Series(0, index=trend.index)),
+    })
+
+    # Formattazione euro
+    for col in ["Ricavi", "Spese", "Saldo"]:
+        riepilogo[col] = riepilogo[col].map("€ {:,.2f}".format)
+
+    st.dataframe(riepilogo, use_container_width=True)
+
+    # === Riepilogo Totale Ricavi e Spese dell'anno ===
+    st.markdown("### 💡 Riepilogo Totale Annuale")
+    totale_spese = df[df["tipologia"] == "spesa"]["ammontare"].sum()
+    totale_ricavi = df[df["tipologia"] == "ricavo"]["ammontare"].sum()
+    saldo_totale = totale_ricavi - totale_spese
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Totale Ricavi", f"€ {totale_ricavi:,.2f}")
+    col2.metric("Totale Spese", f"€ {totale_spese:,.2f}")
+    col3.metric("Saldo Totale", f"€ {saldo_totale:,.2f}", delta=f"{saldo_totale:+,.2f}")        
+else:
         st.warning("⚠️ Nessun dato disponibile per generare il grafico trend.")
         
 
 
-    # === GRAFICO TORTA ===
-    st.subheader("🥧 Distribuzione % delle Spese per Categoria")
-    torta = spese.groupby("categoria")["ammontare"].sum()
+# === GRAFICO TORTA ===
+st.subheader("🥧 Distribuzione % delle Spese per Categoria")
+torta = spese.groupby("categoria")["ammontare"].sum()
 
-    fig3 = go.Figure(data=[go.Pie(
-        labels=torta.index,
-        values=torta.values,
-        marker_colors=[get_colore(cat) for cat in torta.index],
-        hole=0.3
-    )])
-    fig3.update_layout(title="Distribuzione % delle Spese")
-    st.plotly_chart(fig3, use_container_width=True)
+fig3 = go.Figure(data=[go.Pie(
+    labels=torta.index,
+    values=torta.values,
+    marker_colors=[get_colore(cat) for cat in torta.index],
+    hole=0.3
+)])
+fig3.update_layout(title="Distribuzione % delle Spese")
+st.plotly_chart(fig3, use_container_width=True)
 
-else:
-    st.info("Nessun dato ancora disponibile.")
 
 # === Visualizza tabella completa con filtri ===
 st.subheader("🧰 Filtra i dati del database")
