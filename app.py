@@ -80,7 +80,7 @@ with st.expander("➕ Inserisci nuova voce"):
             data = st.date_input("Data", value=datetime.today()).strftime("%Y-%m-%d")
             categoria_sel = st.selectbox("Categoria esistente", categorie_esistenti) if categorie_esistenti else ""
             nuova_categoria = st.text_input("...oppure scrivi una nuova categoria")
-            categoria = nuova_categoria if nuova_categoria else categoria_sel
+            categoria = nuova_categoria.upper() if nuova_categoria else categoria_sel
 
             sottocategoria_sel = st.selectbox("Sottocategoria esistente", sottocategorie_esistenti) if sottocategorie_esistenti else ""
             nuova_sottocategoria = st.text_input("...oppure scrivi una nuova sottocategoria")
